@@ -170,6 +170,7 @@ interface DraftLocator {
   // This is useful on embedded blog comments pages, if the Talkyard page hasn't yet
   // been created, so there's no page id. [BLGCMNT1]
   embeddingUrl?: string;
+  discussionId?: St;
   postNr?: PostNr;
 }
 
@@ -395,6 +396,7 @@ type Me = Myself
 interface Myself extends OwnPageNotfPrefs {   // RENAME to Me
   dbgSrc?: string;
   id?: UserId;
+  isStranger?: Bo;
   isGroup?: boolean; // currently always undefined (i.e. false)
   isLoggedIn?: boolean;
   isAdmin?: boolean;
@@ -897,6 +899,12 @@ interface Origins {
   embeddedOriginOrEmpty: string;
   anyCdnOrigin?: string;
   pubSiteId: string;
+}
+
+
+interface EmbSessionStore {
+  me?: Myself;
+  embeddedOriginOrEmpty: St;
 }
 
 

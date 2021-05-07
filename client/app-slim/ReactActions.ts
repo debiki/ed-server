@@ -72,13 +72,17 @@ export const actionTypes = {
 };
 
 
-export function loadMyself(afterwardsCallback?) {
+export function loadMyself(afterwardsCallback?: () => Vo) {
   // (Don't delete temp login cookies here, because this fn gets called if login is
   // detected in another tab — and perhaps yet another login has been started in that other
   // tab, and we don't want to break it by deleting cookies. Instead login temp cookies are
   // deleted by the server.)
 
   Server.loadMyself((user) => {
+    // @ifdef DEBUG
+    // Might happen if there was no weakSessionId, and also, no cookie.
+    dieIf(!user, 'TyE4032SMH57');
+    // @endif
     if (isInSomeEmbCommentsIframe()) {
       // Tell the embedded comments or embedded editor iframe that we just logged in,
       // also include the session id, so Talkyard's script on the embedding page
@@ -95,7 +99,10 @@ export function loadMyself(afterwardsCallback?) {
               // — could be surprising if we had to click buttons to log out,
               // when we didn't need to do that, to log in.
               typs.sessType !== SessionType.AutoTokenSiteCustomSso;
-      sendToOtherIframe([
+      if (mainWin !== window) {
+        mainWin.theStore.me = _.cloneDeep(user);
+      }
+      sendToOtherIframes([
         'justLoggedIn', { user, weakSessionId, pubSiteId: eds.pubSiteId,  // [JLGDIN]
               sessionType: null, rememberEmbSess }]);
     }
@@ -108,6 +115,9 @@ export function loadMyself(afterwardsCallback?) {
 
 
 export function setNewMe(user) {
+  // @ifdef DEBUG
+  dieIf(!user, `setNewMe(nothing) TyE60MRJ46RS`);
+  // @endif
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.NewMyself,
     user: user
@@ -132,20 +142,24 @@ export function logout() {
 }
 
 
-export function logoutClientSideOnly(ps: { goTo?: St } = {}) {
+export function logoutClientSideOnly(ps: { goTo?: St, skipSend?: Bo } = {}) {
+//export function logoutClientSideOnly(skipSend?: 'SkipSend') {  ?
   Server.deleteTempSessId();
 
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.Logout
   });
 
-  if (eds.isInEmbeddedCommentsIframe) {
+  if (eds.isInEmbeddedCommentsIframe && !ps.skipSend) { // !== 'SkipSend') {
     // Tell the editor iframe that we've logged out.
     // And maybe we'll redirect the embedd*ing* window.  [sso_redir_par_win]
-    sendToOtherIframe(['logoutClientSideOnly', ps]);
+    sendToOtherIframes(['logoutClientSideOnly', ps]);
 
     // Probaby not needed, since reload() below, but anyway:
     patchTheStore({ setEditorOpen: false });
+    const sessWin: MainWin = getMainWin();
+    delete sessWin.typs.weakSessionId;
+    sessWin.theStore.me = 'TyMSGDOUT' as any;
   }
 
   // Disconnect WebSocket so we won't receive data, for this user, after we've
@@ -316,24 +330,37 @@ export function showForumIntro(visible: boolean) {
 }
 
 
-export function editPostWithNr(postNr: PostNr) {
+export function editPostWithNr(postNr: PostNr, inWhichWin?: MainWin) {
   login.loginIfNeededReturnToPost(LoginReason.LoginToEdit, postNr, () => {
     if (eds.isInEmbeddedCommentsIframe) {
+      // [many_embcom_iframes]
       sendToEditorIframe(['editorEditPost', postNr]);
     }
     else {
       // Right now, we don't need to use the Store for this.
-      editor.openToEditPostNr(postNr);
+      editor.openToEditPostNr(postNr, undefined, inWhichWin);
     }
   });
 }
 
 
-export function handleEditResult(editedPost) {
+export function handleEditResult(editedPost: Post, sendToWhichFrame?: MainWin) {
   if (eds.isInEmbeddedEditor) {
-    sendToCommentsIframe(['handleEditResult', editedPost]);
+    sendToCommentsIframe(['handleEditResult', editedPost], sendToWhichFrame);
   }
   else {
+    // Forget any pre-edits cached post — we no longer need to restore it
+    // when the editor closes and we remove any preview, because we've saved the edits.
+    if (origPostBeforeEdits) {
+      // @ifdef DEBUG
+      dieIf(editedPost.nr !== origPostBeforeEdits.nr,
+            `Preview post, and the now edited and saved post, are different:
+            nr ${editedPost.nr} and ${origPostBeforeEdits.nr} respectively,
+            here's the cached post: ${JSON.stringify(origPostBeforeEdits)},
+            and the edited post: ${JSON.stringify(editedPost)} [TyE3056MR35]`);
+      // @endif
+      origPostBeforeEdits = null;
+    }
     updatePost(editedPost);
   }
 }
@@ -366,7 +393,7 @@ export function deletePost(postNr: number, repliesToo: boolean, success: () => v
 
 
 // try to remove, use patchTheStore() instead
-export function updatePost(post) {
+export function updatePost(post: Post) {
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.UpdatePost,
     post: post
@@ -387,12 +414,14 @@ export function changePostType(post: Post, newType: PostType, onDone: () => void
 }
 
 
-export function vote(post, doWhat: string, voteType: string) {
+export function vote(storePatch: StorePatch, doWhat: 'DeleteVote' | 'CreateVote',
+        voteType: St, postNr: PostNr) {
   ReactDispatcher.handleViewAction({
+    storePatch,
     actionType: actionTypes.VoteOnPost,
-    post: post,
-    doWhat: doWhat,
-    voteType: voteType
+    doWhat,
+    voteType,
+    postNr,
   });
 }
 
@@ -961,7 +990,7 @@ let origPostBeforeEdits: Post | undefined;
 let lastFlashPostNr: PostNr | undefined;
 
 
-export function showEditsPreviewInPage(ps: ShowEditsPreviewParams) {
+export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inWhichFrame?: Window) {
   // @ifdef DEBUG
   dieIf(ps.replyToNr && ps.editingPostNr, 'TyE73KGTD02');
   dieIf(ps.replyToNr && !ps.anyPostType, 'TyE502KGSTJ46');
@@ -970,7 +999,8 @@ export function showEditsPreviewInPage(ps: ShowEditsPreviewParams) {
   if (eds.isInEmbeddedEditor) {
     const editorIframeHeightPx = window.innerHeight;
      // DO_AFTER 2020-09-01 send 'showEditsPreviewInPage' instead.
-    sendToCommentsIframe(['showEditsPreview', { ...ps, editorIframeHeightPx }]);
+    sendToCommentsIframe(
+            ['showEditsPreview', { ...ps, editorIframeHeightPx }], inWhichFrame);
     return;
   }
 
@@ -1125,14 +1155,20 @@ export function scrollToPreview(ps: {
 }
 
 
-export function hideEditorAndPreview(ps: HideEditorAndPreviewParams) {
+export function hideEditor() {
+  patchTheStore({ setEditorOpen: false });
+}
+
+
+export function hideEditorAndPreview(ps?: HideEditorAndPreviewParams, inWhichFrame?) {
   // @ifdef DEBUG
   dieIf(ps.replyToNr && ps.editingPostNr, 'TyE4KTJW035M');
   dieIf(ps.replyToNr && !ps.anyPostType, 'TyE72SKJRW46');
   // @endif
 
   if (eds.isInEmbeddedEditor) {
-    sendToCommentsIframe(['hideEditorAndPreview', ps]);
+    sendToCommentsIframe(['hideEditorAndPreview', ps], inWhichFrame);
+    sendToParent(['hideEditor']);
     patchTheStore({ setEditorOpen: false });
     return;
   }
@@ -1146,7 +1182,7 @@ export function hideEditorAndPreview(ps: HideEditorAndPreviewParams) {
   const isChat = page && page_isChat(page.pageRole);
 
   // If' we've navigated to a different page, then, any preview is gone already.
-  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId;
+  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId; // hm updated alreayd if 1st reply, lazy page?
 
   // A bit dupl debug checks (49307558).
   // @ifdef DEBUG
@@ -1170,6 +1206,12 @@ export function hideEditorAndPreview(ps: HideEditorAndPreviewParams) {
     // Put back the original post, the one before the edits. If saving, then,
     // once the serve has replied, we'll insert the new updated post instead.  Or...? [359264FKUGP]
     if (origPostBeforeEdits) {
+      // @ifdef DEBUG
+      dieIf(ps.editingPostNr !== origPostBeforeEdits.nr,
+            `Preview post to hide, and cached post before edits, are different:
+           nr ${ps.editingPostNr} and ${origPostBeforeEdits.nr} respectively, here's
+           the cached post: ${JSON.stringify(origPostBeforeEdits)} [TyE3056MR35]`);
+      // @endif
       highlightPostNrAfter = origPostBeforeEdits.nr;
       patch = page_makePostPatch(page, origPostBeforeEdits);
       origPostBeforeEdits = null;
@@ -1228,9 +1270,10 @@ export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boole
     draftNr: draft.draftNr,
     forWhat: draft.forWhat,
   }
-  let draftPost;
+  let draftPost: Post | U;
   if (deleteDraftPost) {
-    const store: Store = getMainWinStore();
+    const store: EmbSessionStore = getMainWinStore();  // only author id used  [042MSED3M]
+        // ... so works fine, also if from the wrong iframe. Bit messy, should clean up.
     draftPost = store_makePostForDraft(store, draft);  // [60MNW53]
   }
   deleteDraftImpl(draftPost, draftDeletor, onDoneOrBeacon, onError);
@@ -1305,10 +1348,11 @@ export function composeReplyTo(parentNr: PostNr, replyPostType: PostType) {
 
 
 export function saveReply(editorsPageId: PageId, postNrs: PostNr[], text: string,
-      anyPostType: number, draftToDelete: Draft | undefined, onDone?: () => void) {
+      anyPostType: Nr, draftToDelete: Draft | U, onOk?: () => Vo,
+      sendToWhichFrame?: MainWin) {
   Server.saveReply(editorsPageId, postNrs, text, anyPostType, draftToDelete?.draftNr,
       (storePatch) => {
-    handleReplyResult(storePatch, draftToDelete, onDone);
+    handleReplyResult(storePatch, draftToDelete, onOk, sendToWhichFrame);
   });
 }
 
@@ -1322,15 +1366,16 @@ export function insertChatMessage(text: string, draftToDelete: Draft | undefined
 
 
 export function handleReplyResult(patch: StorePatch, draftToDelete: Draft | undefined,
-      onDone?: () => void) {
+      onDone?: () => void, sendToWhichFrame?: MainWin) {
   if (eds.isInEmbeddedEditor) {
     if (patch.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
+      // (Also done in patchTheStore().)
       eds.embeddedPageId = patch.newlyCreatedPageId;
     }
     // Send a message to the embedding page, which will forward it to
     // the comments iframe, which will show the new comment.
-    sendToCommentsIframe(['handleReplyResult', [patch, draftToDelete]]);
+    sendToCommentsIframe(['handleReplyResult', [patch, draftToDelete]], sendToWhichFrame);
     onDone?.();
     return;
   }
@@ -1341,7 +1386,7 @@ export function handleReplyResult(patch: StorePatch, draftToDelete: Draft | unde
 
 function patchTheStoreAllIframes(storePatch: StorePatch, onDone?: () => void) {
   patchTheStore(storePatch, onDone);
-  sendToOtherIframe(['patchTheStore', storePatch]);
+  sendToOtherIframes(['patchTheStore', storePatch]);
 }
 
 
@@ -1521,24 +1566,44 @@ export function openPagePostNr(pageId: string, postNr: number) { // CLEAN_UP use
 
 
 function sendToEditorIframe(message) {
+  sendToIframesImpl(message, true);
+}
+
+
+function sendToCommentsIframe(message, toWhichFrame?) {
+  sendToIframesImpl(message, false, toWhichFrame);
+}
+
+
+function sendToParent(message, toEditor?: Bo, toWhichFrame?: Window) {
+  sendToIframesImpl(message, false, parent);
+}
+
+
+function sendToIframesImpl(message, toEditor?: Bo, toWhichFrame?: Window) {
   // Send the message to any embedding page; it'll forward it to the appropriate iframe.
   // But only if we're in an iframe — otherwise, in Safari, there's an error. Not in
   // Chrome or FF; they do nothing instead.
   if (eds.isInIframe) {
     try {
-      window.parent.postMessage(JSON.stringify(message), eds.embeddingOrigin);
+      const sendDirectly = toWhichFrame || toEditor; //  &&  feature flag
+      const win = sendDirectly ? toWhichFrame || win_getEditorWin() : window.parent;
+      // (The parent win is the embedding page, e.g. a blog post page,
+      // with origin eds.embeddingOrigin.)
+      const targetOrigin = sendDirectly && toWhichFrame !== parent ?
+              location.origin : eds.embeddingOrigin;
+      win.postMessage(JSON.stringify(message), targetOrigin);
     }
     catch (ex) {
       // Don't propagate this. Probably better to let the current frame continue
       // as best it can with whatever it's doing.
-      console.error(`Error posting to parent frame [TyEPSTPRNT]`, ex);
+      console.error(`Error messaging editor [TyEPSTPRNT]`, ex);
     }
   }
 }
 
 // An alias, for better readability.
-const sendToCommentsIframe = sendToEditorIframe;
-const sendToOtherIframe = sendToEditorIframe;
+const sendToOtherIframes = sendToIframesImpl;
 
 
 //------------------------------------------------------------------------------

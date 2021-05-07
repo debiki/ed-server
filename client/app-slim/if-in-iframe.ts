@@ -25,6 +25,13 @@
 export function startIframeMessages() {
   addEventListener('message', onMessage, false);
 
+  if (!isNoPage(eds.embeddedPageId)) {
+    const sessWin = getMainWin();
+    if (sessWin.tydyn) {
+      sessWin.tydyn.allIframePageIds.push(eds.embeddedPageId);
+    }
+  }
+
   window.parent.postMessage(
       JSON.stringify(['iframeInited', {}]),
       eds.embeddingOrigin);
@@ -35,7 +42,8 @@ export function startIframeMessages() {
 
 
 function onMessage(event) {
-  if (event.origin !== eds.embeddingOrigin)
+  const isFromOtherIframe = event.origin === location.origin;
+  if (event.origin !== eds.embeddingOrigin && !isFromOtherIframe)
     return;
 
   // The message is a "[eventName, eventData]" string because IE <= 9 doesn't support
@@ -48,9 +56,13 @@ function onMessage(event) {
     eventData = json[1];
   }
   catch (error) {
-    // This isn't a message from Debiki.
+    // Not from Talkyard.
     return;
   }
+
+  // We can access other Ty frames  [many_embcom_iframes], but if the sener is
+  // window.parent, we cannot access it — then, set to undefined.
+  const inWhichFrame = isFromOtherIframe ? event.source : undefined;
 
   switch (eventName) {
     case 'loginWithAuthnToken':
@@ -74,6 +86,8 @@ function onMessage(event) {
       dieIf(!eds.isInEmbeddedCommentsIframe, 'TyE305RK3');
       const pubSiteId = eventData.pubSiteId;
       if (eds.pubSiteId === pubSiteId) {
+        const mainWin = debiki2.getMainWin();
+        mainWin.typs.weakSessionId = eventData.weakSessionId;
         typs.weakSessionId = eventData.weakSessionId;
         // This will send 'justLoggedIn' to the editor iframe, so it'll get updated too.
         ReactActions.loadMyself();
@@ -101,7 +115,7 @@ function onMessage(event) {
       break;
     case 'logoutClientSideOnly':
       // Sent from the comments iframe to the editor iframe, when one logs out in the comments iframe.
-      ReactActions.logoutClientSideOnly();
+      ReactActions.logoutClientSideOnly('SkipSend');
       break;
     case 'scrollToPostNr':  // rename to loadAndShowPost  ? + add  anyShowPostOpts?: ShowPostOpts
       var postNr = eventData;
@@ -122,7 +136,7 @@ function onMessage(event) {
       var postNr = eventData[0];
       var inclInReply = eventData[1];
       var postType = eventData[2] ?? PostType.Normal;
-      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType);
+      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, inWhichFrame);
       break;
     case 'handleReplyResult':
       // This message is sent from the embedded editor <iframe> to the comments
@@ -134,7 +148,7 @@ function onMessage(event) {
     case 'editorEditPost':
       // Sent from an embedded comments page to the embedded editor.
       var postNr = eventData;
-      ReactActions.editPostWithNr(postNr);
+      ReactActions.editPostWithNr(postNr, inWhichFrame);
       break;
     case 'onEditorOpen':
       // Sent from the embedded editor to the comments iframe.
@@ -150,6 +164,9 @@ function onMessage(event) {
       break;
     case 'scrollToPreview':
       ReactActions.scrollToPreview(eventData);
+      break;
+    case 'hideEditor':
+      ReactActions.hideEditor();
       break;
     case 'hideEditorAndPreview':
       // This is sent from the embedded editor to an embedded comments page.

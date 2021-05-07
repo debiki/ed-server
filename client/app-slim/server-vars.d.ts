@@ -24,7 +24,10 @@ interface PageSession  {
 }
 
 interface __MainWinInterface extends Window {
+  tydyn?: { allIframePageIds: PageId[] };
   typs: PageSession;
+  theStore: Store;
+  eds: ServerVars;
 }
 
 type MainWin = __MainWinInterface & typeof globalThis;

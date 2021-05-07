@@ -940,7 +940,12 @@ class UserController @Inject()(cc: ControllerComponents, edContext: EdContext)
   }
 
 
-  def loadMyPageData(pageId: PageId): Action[Unit] = GetAction { request =>
+  def loadMyPageData(pageId: St): Action[U] = GetAction { request =>
+    /* Later, load data for many pages:  [many_ifr_my_page_data]
+    val pageIds: ImmSeq[PageId] =
+          if (pageId.indexOf(',') == -1) ImmSeq(pageId)
+          else pageId.split(',').to[ImmSeq] */
+   // For now:
     val json = loadMyPageDataImpl(request, pageId)
     OkSafeJson(json)
   }

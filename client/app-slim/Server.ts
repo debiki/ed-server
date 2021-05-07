@@ -37,9 +37,11 @@ const XsrfTokenHeaderName = 'X-XSRF-TOKEN'; // CLEAN_UP rename to X-Ty-Xsrf-Toke
 const SessionIdHeaderName = 'X-Ty-Sid';
 const AvoidCookiesHeaderName = 'X-Ty-Avoid-Cookies';
 
-function getPageId(): PageId {
-  return eds.embeddedPageId || // [4HKW28]
-      ReactStore.allData().currentPageId;
+export function getPageId(): PageId | U {   // move elsewhere?
+  return !isNoPage(eds.embeddedPageId) ? eds.embeddedPageId : // [4HKW28]
+      ReactStore.allData().currentPageId || (
+        // old,  CLEAN_UP  REMOVE
+        eds.embeddedPageId || ReactStore.allData().currentPageId);
 }
 
 interface OngoingRequest {
@@ -720,13 +722,13 @@ export function addAnyNoCookieHeaders(headers: { [headerName: string]: St }) {  
   // @endif
 
   const typs: PageSession = mainWin.typs;
-  const currentPageXsrfToken = typs.xsrfTokenIfNoCookies;
-  const currentPageSid = typs.weakSessionId;
+  const currentPageXsrfToken: St | U = typs.xsrfTokenIfNoCookies;
+  const currentPageSid: St | U = typs.weakSessionId;
 
   if (!win_canUseCookies(mainWin)) {
     headers[AvoidCookiesHeaderName] = 'Avoid';
     // Not sure if can have been set to xsrf cookie value already? So skip if set.
-    if (!headers[XsrfTokenHeaderName]) {
+    if (!headers[XsrfTokenHeaderName] && currentPageXsrfToken) {
       headers[XsrfTokenHeaderName] = currentPageXsrfToken;
     }
   }
@@ -1363,16 +1365,19 @@ export function savePageNotfPrefUpdStoreIfSelf(memberId: UserId, target: PageNot
   // also include any alt page id, and the embedding url. [4AMJX7]
   if (notfPref.pageId === EmptyPageId) {
     // COULD instead:
-    // const serverVars = getMainWin().eds;
+    // const serverVars = getMainWin().eds;   NO remove  MainWin.eds
     postData.discussionId = eds.embeddedPageAltId || undefined;  // undef not ''
     postData.embeddingUrl = eds.embeddingUrl || undefined;
     postData.lazyCreatePageInCatId = eds.lazyCreatePageInCatId;
   }
 
-  postJsonSuccess('/-/save-content-notf-pref', (response) => {
+  postJsonSuccess('/-/save-content-notf-pref', (response: { newlyCreatedPageId }) => {
+    let storePatch: StorePatch = {};
+
     if (response.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
       eds.embeddedPageId = response.newlyCreatedPageId;
+      storePatch.newlyCreatedPageId = response.newlyCreatedPageId;
     }
 
     // If one saved one's own prefs (rather than if one is staff, and changed someone
@@ -1384,20 +1389,25 @@ export function savePageNotfPrefUpdStoreIfSelf(memberId: UserId, target: PageNot
       if (!pageData && response.newlyCreatedPageId) {
         // Add page data for the new page, so it's there if we need to e.g. render a
         // notf pref button title (then, need to know our page notf level) [TyT305MHRTDP23].
-        // The id will remain EmptyPageId = '0', not newlyCreatedPageId, until page reload.
         pageData = makeNoPageData();
+        pageData.pageId = response.newlyCreatedPageId;
       }
 
       let newMe: Myself;
       if (pageData) {
-        newMe = me_copyWithNewPageData(me, { ...pageData, myPageNotfPref: notfPref })
+        newMe = me_copyWithNewPageData(me, { ...pageData, myPageNotfPref: notfPref });
       }
       else {
         const updPrefs = pageNotfPrefs_copyWithUpdatedPref(me.myCatsTagsSiteNotfPrefs, notfPref);
         newMe = { ...me, myCatsTagsSiteNotfPrefs: updPrefs };
       }
-      ReactActions.patchTheStore({ me: newMe });
+      storePatch.me = newMe;
     }
+
+    if (!_.isEmpty(storePatch)) {
+      ReactActions.patchTheStore(storePatch);
+    }
+
     if (onDone) {
       onDone();
     }
@@ -1418,9 +1428,27 @@ export function loadMyself(callback: (user: any) => void) {
     debugger;
   }
   // @endif
+
+  // Need to load data for the pages all iframes, not just the iframe we're in now.
+  // But not yet implemented server side.  [many_ifr_my_page_data]
+  // Therefore, BUG: If many comments iframes, will *look* as if changing notf
+  // level, has no effect. But in fact it works.
+  let pageIds = getPageId();
+  if (eds.isInEmbeddedCommentsIframe) {
+    try {
+      const mainWin = getMainWin();
+      if (mainWin.tydyn) {
+        pageIds = mainWin.tydyn.allIframePageIds.join(',');
+      }
+    }
+    catch (ex) {
+      logW(`Error getting loadMyself() page id(s)`, ex);
+    }
+  }
   // SHOULD incl sort order & topic filter in the url params. [2KBLJ80]
-  get(`/-/load-my-page-data?pageId=${getPageId()}`, callback);
+  get(`/-/load-my-page-data?pageId=${pageIds}`, callback);
 }
+
 
 export function listDrafts(userId: UserId,
       onOk: (response: ListDraftsResponse) => void, onError: () => void) {
@@ -1618,6 +1646,10 @@ export function loadDraftAndGuidelines(draftLocator: DraftLocator, writingWhat: 
   const toUserIdParam = loc.toUserId ? '&toUserId=' + loc.toUserId : '';
   const categoryParam = categoryId ? '&categoryId=' + categoryId : '';
 
+  // We don't include any embedding url or discussion id — saving drafts
+  // for pages that don't yet exist (lazy created embedded discussions)
+  // hasn't been implemented.  [BLGCMNT1]
+
   const url = `/-/load-draft-and-guidelines?writingWhat=${writingWhat}&pageRole=${pageRole}` +
     draftTypeParam + pageIdParam + postNrParam + postIdParam + toUserIdParam + categoryParam;
 
@@ -1627,6 +1659,8 @@ export function loadDraftAndGuidelines(draftLocator: DraftLocator, writingWhat: 
 }
 
 
+// CLEAN_UP pass page id, so simpler to understand if in emb emb editor and there're
+// many discussions on different Ty iframes, different Ty page ids. [manyiframes_pageid]
 export function loadDraftAndText(postNr: PostNr,
       onDone: (response: LoadDraftAndTextResponse) => void) {
   get(`/-/load-draft-and-text?pageId=${getPageId()}&postNr=${postNr}`, onDone, undefined, {
@@ -1696,7 +1730,7 @@ export function saveVote(data: {
     vote: string,
     action: 'DeleteVote' | 'CreateVote',
     postNrsRead: PostNr[]
-}, onDone: (updatedPost) => void) {
+}, onDone: (storePatch: StorePatch) => Vo) {
   // Specify altPageId and embeddingUrl, so any embedded page can be created lazily. [4AMJX7]
   // @ifdef DEBUG
   dieIf(data.pageId && data.pageId !== EmptyPageId && data.pageId !== getPageId(), 'TyE2ABKSY7');
@@ -1708,12 +1742,12 @@ export function saveVote(data: {
     embeddingUrl: eds.embeddingUrl || undefined,
     lazyCreatePageInCatId: eds.lazyCreatePageInCatId,
   }
-  postJsonSuccess('/-/vote', (response) => {
-    if (response.newlyCreatedPageId) {
+  postJsonSuccess('/-/vote', (storePatch: StorePatch) => {
+    if (storePatch.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
-      eds.embeddedPageId = response.newlyCreatedPageId;
+      eds.embeddedPageId = storePatch.newlyCreatedPageId;
     }
-    onDone(response.updatedPost);
+    onDone(storePatch);
   }, dataWithEmbeddingUrl);
 }
 
@@ -1726,8 +1760,8 @@ export function loadVoters(postId: PostId, voteType: PostVoteType,
 }
 
 
-export function saveEdits(editorsPageId: PageId, postNr: number, text: string,
-      deleteDraftNr: DraftNr, doneCallback: () => void) {
+export function saveEdits(editorsPageId: PageId, postNr: PostNr, text: St,
+      deleteDraftNr: DraftNr, onOK: () => Vo, sendToWhichFrame?: MainWin) {
   postJson('/-/edit', {
     data: {
       pageId: editorsPageId ||
@@ -1740,9 +1774,9 @@ export function saveEdits(editorsPageId: PageId, postNr: number, text: string,
     success: (editedPost) => {
       // This hides the editor and places back the orig post [6027TKWAPJ5]
       // — there'll be a short flash-of-original-version:
-      doneCallback();
+      onOK();
       // ... until here we upsert the edited version instead:
-      ReactActions.handleEditResult(editedPost);
+      ReactActions.handleEditResult(editedPost, sendToWhichFrame);
     }
   });
 }
@@ -1805,6 +1839,7 @@ export function saveReply(editorsPageId: PageId, postNrs: PostNr[], text: string
           // Old (as of Jan 2020), keep for a while?:
           getPageId() || undefined,
       // Incl altPageId and embeddingUrl, so any embedded page can be created lazily. [4AMJX7]
+      // Changed, in emb editor, if many comments iframes  [many_embcom_iframes]
       discussionId: eds.embeddedPageAltId || undefined,  // undef not ''
       embeddingUrl: eds.embeddingUrl || undefined,
       lazyCreatePageInCatId: eds.lazyCreatePageInCatId,

@@ -41,9 +41,9 @@ const htmlElem = document.getElementsByTagName('html')[0];
 declare const EventEmitter3; // don't know why, but the TypeScript defs doesn't work.
 export const ReactStore = new EventEmitter3();
 
-export function getMainWinStore(): Store {  // RENAME QUICK to win_getMainWinStore()
+export function getMainWinStore(): EmbSessionStore {  // RENAME QUICK to win_getSessWinStore()
   const mainWin = getMainWin();
-  return mainWin.debiki2.ReactStore.allData();
+  return mainWin.theStore;
 }
 
 type StoreStateSetter = (store: Store) => void;
@@ -505,8 +505,45 @@ ReactStore.activateVolatileData = function() {
   dieIf(volatileDataActivated, 'EsE4PFY03');
   volatileDataActivated = true;
   const data: VolatileDataFromServer = eds.volatileDataFromServer;
+
+  // If we're in a comments iframe, and we're logged in — there's
+  // a sesison and a user in the session-iframe.html — then, use that
+  // user. This makes it possible to dynamically add new blog comments
+  // iframes, and they'll be aware about already being logged in,
+  // even if the browser refuses to send any session cookie to the server.
+  let sessWin: MainWin;
+  if (eds.isInIframe) try {
+    sessWin = getMainWin();
+    const sessStore: EmbSessionStore = sessWin.theStore;
+    if (_.isObject(sessStore.me)) {
+      if (!data.me || data.me.isStranger) {
+        data.me = _.cloneDeep(sessStore.me);  // [emb_ifr_shortcuts]
+      }
+      else {
+        data.me = me_merge(sessStore.me, data.me);  // [emb_ifr_shortcuts]
+        sessStore.me = data.me;
+      }
+    }
+  }
+  catch (ex) {
+    logW(`Multi iframe error? [TyEMANYIFR02]`, ex)
+  }
+
   theStore_setOnlineUsers(data.numStrangersOnline, data.usersOnline);
   ReactStore.activateMyself(data.me);
+
+  // This is safe and cannot fail, still, try-catch for now, new code.
+  // DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
+  if (sessWin) try {
+    const sessStore: EmbSessionStore = sessWin.theStore;
+    if (!_.isObject(sessStore.me) && store.me) {  // [emb_ifr_shortcuts]
+      sessStore.me = _.cloneDeep(store.me);
+    }
+  }
+  catch (ex) {
+    logW(`Multi iframe error? [TyEMANYIFR03]`, ex)
+  }
+
   store.quickUpdate = false;
   this.emitChange();
 };
@@ -905,14 +942,14 @@ function updatePost(post: Post, pageId: PageId, isCollapsing?: boolean) {
 
 
 function voteOnPost(action) {
-  const post: Post = action.post;
+  const postNr: PostNr = action.postNr;
 
   const me: Myself = store.me;
   const myPageData: MyPageData = me.myCurrentPageData;
-  let votes = myPageData.votes[post.nr];
+  let votes = myPageData.votes[postNr];
   if (!votes) {
     votes = [];
-    myPageData.votes[post.nr] = votes;
+    myPageData.votes[postNr] = votes;
   }
 
   if (action.doWhat === 'CreateVote') {
@@ -922,7 +959,7 @@ function voteOnPost(action) {
     _.remove(votes, (voteType) => voteType === action.voteType);
   }
 
-  updatePost(post, store.currentPageId);
+  patchTheStore(action.storePatch);
 }
 
 
@@ -1401,7 +1438,7 @@ function updateNotificationCounts(notf: Notification, add: boolean) {
 }
 
 
-function patchTheStore(storePatch: StorePatch) {
+function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly, instead of via Flux mess
   if (isDefined2(storePatch.setEditorOpen) && storePatch.setEditorOpen !== store.isEditorOpen) {
     store.isEditorOpen = storePatch.setEditorOpen;
     store.editorsPageId = storePatch.setEditorOpen && storePatch.editorsPageId;
@@ -1426,7 +1463,24 @@ function patchTheStore(storePatch: StorePatch) {
 
   if (storePatch.me) {
     // [redux] modifying the store in place, again.
-    store.me = <Myself> _.assign(store.me || {}, storePatch.me);
+    let patchedMe: Myself | U;
+    if (eds.isInIframe) {
+      try {
+        const sessWin = getMainWin();
+        const sessStore: EmbSessionStore = sessWin.theStore;
+        if (_.isObject(sessStore.me)) {
+          patchedMe = me_merge(sessStore.me, store.me || {} as Myself, storePatch.me);  // [emb_ifr_shortcuts]
+          sessStore.me = patchedMe;
+        }
+      }
+      catch (ex) {
+        logW(`Multi iframe error? [TyEMANYIFR04]`, ex)
+      }
+    }
+    if (!patchedMe) {
+      patchedMe = _.assign(store.me || {} as Myself, storePatch.me);
+    }
+    store.me = patchedMe;
   }
 
   if (storePatch.deleteDraft) {
@@ -1516,6 +1570,8 @@ function patchTheStore(storePatch: StorePatch) {
     const origPost = currentPage.postsByNr[BodyNr];
     origPost.uniqueId = storePatch.newlyCreatedOrigPostId;
 
+    // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
+    eds.embeddedPageId = storePatch.newlyCreatedPageId;
     // Later: Add this new page to the watchbar? Currently not needed, because pages created
     // lazily only for embedded comments, and then there's no watchbar.
   }
@@ -1539,7 +1595,7 @@ function patchTheStore(storePatch: StorePatch) {
     _.each(store.pagesById, (oldPage: Page) => {
       _.each(patchedPosts, (patchedPost: Post) => {
         _.each(oldPage.postsByNr, (oldPost: Post) => {
-          if (oldPost.uniqueId === patchedPost.uniqueId) {
+          if (oldPost.uniqueId === patchedPost.uniqueId) {  // oops old  = -1000101
             const movedToNewPage = oldPage.pageId !== patchedPageId;
             const movedOnThisPage = !movedToNewPage && oldPost.parentNr !== patchedPost.parentNr;
             if (movedOnThisPage) {
@@ -1830,6 +1886,7 @@ function watchbar_copyUnreadStatusFromTo(old: Watchbar, newWatchbar: Watchbar) {
 function makeStranger(store: Store): Myself {
   const stranger = {
     dbgSrc: '5BRCW27',
+    isStranger: true,
     trustLevel: TrustLevel.Stranger,
     threatLevel: ThreatLevel.HopefullySafe,
     permsOnPages: [],

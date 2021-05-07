@@ -1,0 +1,117 @@
+FAILED: embedded-comments-category-refs.2browsers.test.ts: Memah gets a notf email — she's subscribed to Cateory N
+Error: Never got any email to e2e-test--memah@example.com matching mariasReplyToNnn [EdE5JGK2Q1]
+    at Object.die (/home/user/styd/d9/tests/e2e/utils/log-and-die.ts:98:11)
+    at Object.waitUntilLastEmailMatches (/home/user/styd/d9/tests/e2e/utils/server.ts:469:3)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-category-refs.2browsers.test.ts:230:12)
+
+==============================================================
+
+FAILED: embedded-comments-category-refs.2browsers.test.ts: Memah gets a notf email — she's subscribed to Cateory N
+Error: Never got any email to e2e-test--memah@example.com matching mariasReplyToNnn [EdE5JGK2Q1]
+    at Object.die (/home/user/styd/d9/tests/e2e/utils/log-and-die.ts:98:11)
+    at Object.waitUntilLastEmailMatches (/home/user/styd/d9/tests/e2e/utils/server.ts:469:3)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-category-refs.2browsers.test.ts:230:12)
+
+==============================================================
+
+FAILED: embedded-comments-category-refs.2browsers.test.ts: Memah gets a notf email — she's subscribed to Cateory N
+Error: Never got any email to e2e-test--memah@example.com matching mariasReplyToNnn [EdE5JGK2Q1]
+    at Object.die (/home/user/styd/d9/tests/e2e/utils/log-and-die.ts:98:11)
+    at Object.waitUntilLastEmailMatches (/home/user/styd/d9/tests/e2e/utils/server.ts:469:3)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-category-refs.2browsers.test.ts:230:12)
+
+==============================================================
+
+FAILED: embedded-comments-drafts-not-logged-in.test.ts: she goes from page ddd to eee
+AssertionError [ERR_ASSERTION]: false == true
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-drafts-not-logged-in.test.ts:106:5)
+
+==============================================================
+
+FAILED: embedded-comments-drafts-not-logged-in.test.ts: she goes from page ddd to eee
+AssertionError [ERR_ASSERTION]: false == true
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-drafts-not-logged-in.test.ts:106:5)
+
+==============================================================
+
+FAILED: embedded-comments-drafts-not-logged-in.test.ts: she goes from page ddd to eee
+AssertionError [ERR_ASSERTION]: false == true
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-drafts-not-logged-in.test.ts:106:5)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-gatsby.test.ts: ... posts a second comment
+Error: Timeout of 27000ms exceeded. The execution in the test "embedded comments, Gatsby blog and un/re-mmounting comments ... posts a second comment" took too long. Try to reduce the run time or increase your timeout for test specs (https://webdriver.io/docs/timeouts.html). (/home/user/styd/d9/tests/e2e/specs/embedded-comments-gatsby.test.ts)
+    at Test.Runnable._timeoutError (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:426:10)
+    at Timeout.<anonymous> (/home/user/styd/d9/node_modules/mocha/lib/runnable.js:238:24)
+    at listOnTimeout (internal/timers.js:554:17)
+    at processTimers (internal/timers.js:497:7)
+
+==============================================================
+
+FAILED: embedded-comments-scroll-embedding-page.test.ts: B: Maria waits for the comments to load
+AssertionError [ERR_ASSERTION]: undefined
+    at Object.ok (/home/user/styd/d9/tests/e2e/utils/ty-assert.ts:29:12)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-scroll-embedding-page.test.ts:105:14)
+
+==============================================================
+
+FAILED: embedded-comments-scroll-embedding-page.test.ts: B: Maria waits for the comments to load
+AssertionError [ERR_ASSERTION]: undefined
+    at Object.ok (/home/user/styd/d9/tests/e2e/utils/ty-assert.ts:29:12)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-scroll-embedding-page.test.ts:105:14)
+
+==============================================================
+
+FAILED: embedded-comments-scroll-embedding-page.test.ts: B: Maria waits for the comments to load
+AssertionError [ERR_ASSERTION]: undefined
+    at Object.ok (/home/user/styd/d9/tests/e2e/utils/ty-assert.ts:29:12)
+    at Context.<anonymous> (/home/user/styd/d9/tests/e2e/specs/embedded-comments-scroll-embedding-page.test.ts:105:14)
+
+==============================================================
+

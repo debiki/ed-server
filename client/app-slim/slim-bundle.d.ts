@@ -135,7 +135,7 @@ declare namespace debiki2 {
 
   function win_isLoginPopup(): Bo;
   function getMainWin(): MainWin;
-  function getMainWinStore(): Store;
+  function getMainWinStore(): EmbSessionStore;
   function win_canUseCookies(win: MainWin): boolean;
 
   function getNowMs(): WhenMs;
@@ -378,6 +378,7 @@ declare namespace debiki2 {
   var userId_isGuest;
   function store_isFeatFlagOn(store: Store, featureFlag: St): Bo;
   function store_isNoPage(store: Store): boolean;
+  function isNoPage(pageId: PageId): Bo;
   function store_isPageDeleted(store: Store): boolean;
   function page_isAncCatDeld(page: Page): Bo;
   function store_canDeletePage(store: Store): boolean;

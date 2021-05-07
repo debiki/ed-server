@@ -108,13 +108,19 @@ class VoteController @Inject()(cc: ControllerComponents, edContext: EdContext)
         voterId = request.theUser.id, voterIp = request.ip, postNrsRead)
     }
 
-    val postJson = dao.jsonMaker.postToJson2(postNr = postNr, pageId = pageId,
-      includeUnapproved = false, showHidden = true)
+    val updatedPost = dao.loadPost(pageId, postNr) getOrThrowForbidden(
+          "TyE7M3MRSED5", "No such post")
 
-    val responseJson =
-      EmbeddedCommentsPageCreator.makeAnyNewPageJson(newEmbPage) +
-        ("updatedPost" -> postJson)
+    val author = dao.getParticipantOrUnknown(updatedPost.createdById)
 
+    //val postJson = dao.jsonMaker.postToJson2(postNr = postNr, pageId = pageId,
+    //  includeUnapproved = false, showHidden = true)
+
+    val storePatchJson = dao.jsonMaker.makeStorePatch(updatedPost, author, showHidden = true)
+
+    val responseJson = storePatchJson ++
+          EmbeddedCommentsPageCreator.makeAnyNewPageJson(newEmbPage)
+        // ("updatedPost" -> postJson)
     OkSafeJson(responseJson)
   }
 

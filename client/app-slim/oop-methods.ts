@@ -580,14 +580,37 @@ export function post_isPubVisible(post: Post): Bo {
 }
 
 
+
 // Me
 //----------------------------------
+
+
+export function me_merge(me1: Myself, me2: Partial<Myself>,
+        me3?: Partial<Myself>): Myself {
+  let me = me_mergeImpl(me1, me2);
+  if (me3) {
+    me = me_mergeImpl(me, me3);
+  }
+  return me;
+}
+
+
+function me_mergeImpl(me1: Partial<Myself>, me2: Partial<Myself>): Myself {
+  const me = { ...me1, ...me2 };
+  me.myDataByPageId = { ...me1.myDataByPageId, ...me2.myDataByPageId };
+  me.marksByPostId = { ...me1.marksByPostId, ...me2.marksByPostId };
+//export function pageNotfPrefs_copyWithUpdatedPref(
+ //    prefs: PageNotfPref[], newNotfPref: PageNotfPref): PageNotfPref[] {
+  return me as Myself;
+}
+
 
 export function me_isUser(me: Myself): boolean {
   return (!isGuest(me) && !me.isGroup &&
       // Don't need both these? Oh well.
       me.isAuthenticated && me_isAuthenticated(me));
 }
+
 
 export function me_hasRead(me: Myself, post: Post) {
   // If not logged in, we have no idea.
@@ -741,8 +764,12 @@ export function store_mainSiteSection(store: Store): SiteSection {
 
 
 
-export function store_isNoPage(store: Store): boolean {
-  return !store.currentPageId || store.currentPageId === EmptyPageId;
+export function store_isNoPage(store: Store): Bo {
+  return isNoPage(store.currentPageId);
+}
+
+export function isNoPage(pageId: PageId): Bo {
+  return !pageId || pageId === EmptyPageId;
 }
 
 
@@ -1036,7 +1063,7 @@ export function store_findCatsWhereIMayCreateTopics(store: Store): Category[] {
 export function store_getPostId(store: Store, pageId: PageId, postNr: PostNr): PostId | U {
   // If we're on a blog bost with embedded comments, then, the Talkyard embedded
   // comments page might not yet have been created.
-  if (!pageId)
+  if (isNoPage(pageId))
     return undefined;
 
   // The page might not be the current page, if the editor is open and we've
@@ -1109,7 +1136,7 @@ export function postType_toDraftType(postType: PostType): DraftType | undefined 
 }
 
 
-export function store_makePostForDraft(store: Store, draft: Draft): Post | null {
+export function store_makePostForDraft(store: EmbSessionStore, draft: Draft): Post | null {
   const locator: DraftLocator = draft.forWhat;
   const parentPostNr = locator.postNr;
 
@@ -1148,7 +1175,7 @@ export function post_makePreviewIdNr(parentNr: PostNr, newPostType: PostType): P
 
 
 interface MakePreviewParams {
-  store: Store;
+  store: EmbSessionStore;
   parentPostNr?: PostNr;
   safePreviewHtml?: string;
   unsafeSource?: string;
@@ -1161,7 +1188,8 @@ interface MakePreviewParams {
 
 
 function store_makePreviewPost({
-    store, parentPostNr, safePreviewHtml, unsafeSource,
+    store,   // REFACTOR CLEAN_UP use autorId param instead, no need for the whole store [042MSED3M]
+    parentPostNr, safePreviewHtml, unsafeSource,
     newPostType, isForDraftNr, isEditing }: MakePreviewParams): Post {
 
   dieIf(!newPostType, "Don't use for edit previews [TyE4903KS]");

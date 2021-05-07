@@ -268,7 +268,7 @@ eds.isInEmbeddedCommentsIframe = _isInEmbCmtsIframe && !eds.isInEmbeddedEditor;
   embeddingUrl: @Html(embeddingUrlOrUndefined),
   */
 if (!eds.isInEmbeddedEditor) {  // [6932867RMS]
-  // CLEAN_UP use sth like:  getMainWin().theStore.currentPageId  instead?
+  // CLEAN_UP use sth like:  getMainWin().theStore.currentPageId  instead? — no, remove main-win-current-page-id.
   eds.embeddedPageId = _isInIframe ? _pageId : undefined;
 }
 // Else: Already incl in eds, leave as is.
@@ -290,7 +290,7 @@ var debiki = { internal: {}, v0: { util: {}} };
 
 // Talkyard per page load session data (if we avoid cookies). [NOCOOKIES]   rename to  tyd?  see above *@
 var typs: PageSession = {
-  xsrfTokenIfNoCookies: _volatileData.xsrfTokenIfNoCookies,
+  xsrfTokenIfNoCookies: _volatileData.xsrfTokenIfNoCookies,   // upd getSidWin().typs?
   canUseCookies: navigator.cookieEnabled
 };
 
