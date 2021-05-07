@@ -126,13 +126,16 @@ var postNrToFocus;  // RENAME to ...AfterCommentsLoaded
 let allUrlParams = '';
 let loadWeinre: Bo | U;
 
-let commentsIframe: HTMLIFrameElement;  // legacy
-let commentsIframes: (HTMLIFrameElement | U)[];
-var commentsIframeInited;  // dupl, remove, use Arr instead (contents dyn upd)
-var commentsIframeInitedArr = [false];
-let commentsIframesInited: (true | U)[];
+const EditorIframeNr = 0;
+const FirstCommentsIframeNr = 1;
+let numCommentsIframes = 0;
+
+let loadingElms: (HElm | U)[];
+let iframeElms: (HTMLIFrameElement | U)[];
+let iframesInited: (Bo | U)[];
+let pendingIframeMessages: Ay[][] = [];
+
 var editorIframe;
-var editorIframeInitedArr = [false];
 var editorWrapper;
 var editorPlaceholder;
 
@@ -198,17 +201,23 @@ function loadCommentsCreateEditor() {
   if (!commentsElems.length)
     return;
 
-  const numCommentsIframes = commentsElems.length;
+  numCommentsIframes = commentsElems.length;
   debugLog(`Found ${numCommentsIframes} Ty comment elems`);
 
-  commentsIframes = new Array(numCommentsIframes);
-  commentsIframesInited = new Array(numCommentsIframes);
+  const numPlusOne = numCommentsIframes + 1;
+  loadingElms = new Array(numPlusOne);
+  iframeElms = new Array(numPlusOne);
+  iframesInited = new Array(numPlusOne);
+  pendingIframeMessages = new Array(numPlusOne);
 
   let anyOk = false;
   for (let i = 0; i < numCommentsIframes; ++i) {
-    const thisOneOk = intCommentIframes(commentsElems[i], i, numCommentsIframes > 1);
+    // The editor iframe is nr 0, so start at 1.
+    const ifrNr = i + 1;
+    const thisOneOk = intCommentIframe(commentsElems[i], ifrNr, numCommentsIframes > 1);
     anyOk ||= thisOneOk;
   }
+
   if (anyOk) {
     initEditorIframe(numCommentsIframes > 1);
   }
@@ -216,7 +225,7 @@ function loadCommentsCreateEditor() {
 
 
 
-function intCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
+function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   var embeddingUrl = window.location.origin + window.location.pathname + window.location.search;
   var embeddingUrlParam = 'embeddingUrl=' + embeddingUrl;
@@ -277,8 +286,7 @@ function intCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) 
 
   // Don't `hide()` the iframe, then FireFox acts as if it doesn't exist: FireFox receives
   // no messages at all from it.
-  commentsIframeInited = false;
-  commentsIframe = Bliss.create('iframe', {
+  const commentsIframe = Bliss.create('iframe', {
     id: 'ed-embedded-comments',
     name: 'edComments',
     className: 'p_CmtsIfr ty_CmtsIfr',   // DEPRECATE old name p_CmtsIfr
@@ -302,7 +310,7 @@ function intCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) 
 
   Bliss.start(commentsIframe, commentsElem);
 
-  commentsIframes[iframeNr] = commentsIframe;
+  iframeElms[iframeNr] = commentsIframe;
   debugLog(`Inserted commentsIframes[${iframeNr}]`);
 
   if (insecureSomethingErrMsg) {
@@ -329,10 +337,12 @@ function intCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) 
   var loadingCommentsElem = Bliss.create('p', {
     id: 'ed-loading-comments',
     className: 'p_Ldng p_Ldng-Cmts',
-    text: "Loading comments ..."
+    textContent: "Loading comments ..."
   });
 
   Bliss.start(loadingCommentsElem, commentsElem);
+  loadingElms[iframeNr] = loadingCommentsElem;
+
   return true;
 }
 
@@ -401,6 +411,8 @@ function initEditorIframe(manyCommentsIframes: Bo) {
     src: editorIframeUrl
   });
 
+  iframeElms[EditorIframeNr] = editorIframe;
+
   Bliss.inside(editorIframe, editorWrapper);
   debugLog("inserted editorIframe");
 
@@ -410,26 +422,32 @@ function initEditorIframe(manyCommentsIframes: Bo) {
 }
 
 
+
 function removeCommentsAndEditor() {
   debugLog("removeCommentsAndEditor()");
-  for (let i = 0; i < commentsIframes.length; ++i) {
-    const commentsIframe = commentsIframes[i];
-    commentsIframe.remove();
+  for (let i = 0; i < iframeElms.length; ++i) {
+    const iframe = iframeElms[i];
+    if (iframe) {
+      iframe.remove();
+    }
+    const loadingText = loadingElms[i];
+    if (loadingText) {
+      loadingText.remove();
+    }
   }
-  commentsIframesInited = null;
-  if (commentsIframe) {
-    commentsIframe = null;
-    commentsIframeInited = false;
-    commentsIframeInitedArr = [false];
-  }
+  loadingElms = null;
+  iframeElms = null;
+  iframesInited = null;
+  pendingIframeMessages = null;
+
   if (editorIframe) {
-    editorIframe.remove();
+    //editorIframe.remove();  // done above
     editorIframe = null;
     editorWrapper.remove();
     editorWrapper = null;
-    editorIframeInitedArr = [false];
   }
 }
+
 
 
 // Editor placeholder, so the <iframe> won't occlude the lower parts of the page.
@@ -442,6 +460,7 @@ function createEditorPlaceholder() {
 }
 
 
+
 /* Enable Utterscroll in parent window.
 // Once the iframe has been loaded, Utterscroll will run in the iframe too,
 // and the two Utterscroll instances will cooperate via `window.postMessage`.
@@ -452,9 +471,14 @@ jQuery(function($) {   // xx
 }); */
 
 
+
 function messageCommentsIframeNewWinTopSize() {
+  /*
   // Dupl code (6029084583).
   // Remove this; reuse sendToIframeImpl instead?
+
+  const commentsIframe = iframeElms[iframeNr];
+  const isInited = iframesInited[iframeNr];
 
   if (!commentsIframe) {
     // Not yet created, or maybe got deleted by some other Javascript.
@@ -479,11 +503,18 @@ function messageCommentsIframeNewWinTopSize() {
   // set a breakpoint in the app server, in EmbeddedTopicsController.showTopic [5BRW02],
   // to block the iframe from loading, and then you can reproduce this error.
   //
-  if (!commentsIframeInited) {
-    setTimeout(messageCommentsIframeNewWinTopSize, 1000);
+  if (!isInited) {
+    setTimeout(function() {
+      messageCommentsIframeNewWinTopSize(iframeNr);
+    }, 1000);
     return;
   }
+  */
+  sendToComments(calcSizes);
+}
 
+
+function calcSizes(commentsIframe: HTMLIFrameElement, iframeNr: Nr): St {
   var rect = commentsIframe.getBoundingClientRect();
   // We're interested in the height part of the viewport that is used for the iframe.
 
@@ -495,7 +526,7 @@ function messageCommentsIframeNewWinTopSize() {
   // And if it starts below the upper window edge, then, `rect.top` is where it starts.
   var iframeVisibleHeight = height - Math.max(0, rect.top);
 
-  sendToComments('["iframeOffsetWinSize",' +
+  return ('["iframeOffsetWinSize",' +
       '{ "top":' + (-rect.top) +  // why did I negate?
       ', "height":' + height +    // rename 'height'? but to what? Maybe 'iframeVisibleBottom'?
       ', "iframeVisibleHeight": ' + iframeVisibleHeight + '}]');
@@ -511,7 +542,7 @@ function messageCommentsIframeToMessageMeToScrollTo(postNr) {
 
 
 function onMessage(event) {
-  if (!commentsIframe) return;
+  if (!numCommentsIframes) return;
 
   // The message is a "[eventName, eventData]" string because IE <= 9 doesn't support
   // sending objects. CLEAN_UP COULD send a real obj nowadays, because we don't support IE 9 any more.
@@ -539,7 +570,8 @@ function onMessage(event) {
   // COULD REFACTOR: Actually, child iframes can message each other directly;
   // need not send via the parent.
 
-  const [iframe, iframeNr, isCommentsIframe] = findIframeThatSent(event);
+  const [iframe, iframeNr] = findIframeThatSent(event);
+  const isFromCommentsIframe = iframeNr >= FirstCommentsIframeNr;
 
   let assertIsFromEditorToComments = function() {};
   let assertIsFromCommentsToEditor = function() {};
@@ -551,7 +583,7 @@ function onMessage(event) {
     }
   };
   assertIsFromCommentsToEditor = function() {
-    if (!isCommentsIframe) {
+    if (!isFromCommentsIframe) {
       debugLog(`Bad msg dir [TyEMSGDIR2]: '${eventName}', ${JSON.stringify(eventData)}`);
       debugger;
     }
@@ -562,7 +594,7 @@ function onMessage(event) {
     if (iframe === editorIframe) {
       sendToComments(what);
     }
-    else if (isCommentsIframe) {
+    else if (isFromCommentsIframe) {
       sendToEditor(what);
     }
     else {
@@ -573,21 +605,15 @@ function onMessage(event) {
 
   switch (eventName) {
     case 'iframeInited':
-      debugLog("got 'iframeInited' message");
+      debugLog(`Iframe nr ${iframeNr} inited`);
+      iframesInited[iframeNr] = true;
 
       // @ifdef DEBUG
-      if (isCommentsIframe === (iframe === editorIframe)) throw Error('TyE29MW06MRTG');
+      if (isFromCommentsIframe === (iframe === editorIframe)) throw Error('TyE29MW06MRTG');
       // @endif
       // if (iframe !== commentsIframe) { ?
-      if (!isCommentsIframe) {
-        editorIframeInitedArr = [true];
+      if (!isFromCommentsIframe)
         return;
-      }
-
-      debugLog("it's the comments iframe");
-      commentsIframeInited = true;
-      commentsIframeInitedArr = [true];
-      commentsIframesInited[iframeNr] = true;
 
       // Any comment to scroll into view?
       //
@@ -651,13 +677,16 @@ function onMessage(event) {
       // dialogs on screen. But wait until the iframe has been resized — because if
       // the iframe bottom after the above resize, is higher up than the window bottom,
       // then that'd reduce the height we send to the iframe.
-      if (iframe === commentsIframe) {
-        setTimeout(messageCommentsIframeNewWinTopSize);
+      if (isFromCommentsIframe) {
+        setTimeout(
+              messageCommentsIframeNewWinTopSize);
       }
       // Remove the "loading comments" info text.
-      var loadingText = document.getElementById('ed-loading-comments');
-      if (loadingText)
-        loadingText.parentNode.removeChild(loadingText);
+      var loadingText = loadingElms[iframeNr];
+      if (loadingText) {
+        loadingText.remove();
+        loadingElms[iframeNr] = undefined;
+      }
       break;
     case 'scrollToPostNr':
       // The comments iframe will calculate the rectangle to scroll into view,
@@ -715,7 +744,7 @@ function onMessage(event) {
         debugLog(`Error removing 'talkyardSession' from  theStorage [TyERMWKSID]`, ex);
       }
       sendToOtherIframe(event.data);
-      if (iframe === commentsIframe) {
+      if (isFromCommentsIframe) {
         showEditor(false);
       }
       break;
@@ -769,6 +798,7 @@ function onMessage(event) {
 }
 
 
+
 function setIframeSize(iframe, dimensions) {
   // Previously: iframe.style.width = dimensions.width + 'px'; — but now 2d scrolling disabled.
   iframe.style.height = dimensions.height + 'px';
@@ -778,37 +808,52 @@ function setIframeSize(iframe, dimensions) {
 }
 
 
-/// Returns: [iframe, index, is-comments-iframe]
-function findIframeThatSent(event): [HTMLIFrameElement, Nr, Bo] {  // [find_evt_ifrm]
+
+/// Returns: [iframe, index]
+function findIframeThatSent(event): [HTMLIFrameElement, Nr] {  // [find_evt_ifrm]
   // See http://stackoverflow.com/a/18267415/694469
-  for (let i = 0; i < commentsIframes.length; ++i) {
-    const comIfr = commentsIframes[i];
+  for (let i = 0; i < iframeElms.length; ++i) {
+    const comIfr = iframeElms[i];
     if (comIfr && comIfr.contentWindow === event.source)
-      return [comIfr, i, true];
+      return [comIfr, i];
   }
-  if (editorIframe && editorIframe.contentWindow === event.source)
-    return [editorIframe, 0, false];
 }
 
 
-const pendingMainIframeMessages = [];
+
 
 function sendToComments(message) {
-  sendToIframeImpl(
-      commentsIframe, commentsIframeInitedArr, pendingMainIframeMessages, message);
+  // For now, send to all. Later, could inspect the message and send only
+  // to the affected comments iframes (e.g. a matching discussion id).
+  for (let i = FirstCommentsIframeNr; i < iframeElms.length; ++i) {
+    const commentsIframe = iframeElms[i];
+    sendToIframeImpl(
+          commentsIframe, i, message);
+  }
 }
 
 
-const pendingEditorIframeMessages = [];
 
 function sendToEditor(message) {
   sendToIframeImpl(
-      editorIframe, editorIframeInitedArr, pendingEditorIframeMessages, message);
+        editorIframe, EditorIframeNr, message);
 }
 
-function sendToIframeImpl(iframe, initedArr: boolean[], pendingMessages,
-      message: any | null) {
+
+
+function sendToIframeImpl(iframe, iframeNr: Nr, message: any | null) {
+  //initedArr: boolean[], pendingMessages,
   // Dupl code (6029084583).
+
+  const iframeNow = iframeElms[iframeNr];
+  if (iframeNow !== iframe) {
+    // Recreated, skip message.
+    return;
+  }
+
+  const iframeInited = iframesInited[iframeNr];
+  const pendingMessages = pendingIframeMessages[iframeNr] || [];
+  pendingIframeMessages[iframeNr] = pendingMessages;
 
   // Sometimes one iframe comes alive and wants to message the other one,
   // before that other iframe is ready.
@@ -818,15 +863,23 @@ function sendToIframeImpl(iframe, initedArr: boolean[], pendingMessages,
   if (message) {
     pendingMessages.push(message);
   }
-  if (!initedArr[0]) {
+
+  if (!pendingMessages.length)
+    return;
+
+  if (!iframeInited) {
     setTimeout(function() {
-      sendToIframeImpl(iframe, initedArr, pendingMessages, null);
+      sendToIframeImpl(iframe, iframeNr, null);
     }, 500);
     return;
   }
+
   for (let i = 0; i < pendingMessages.length; ++i) {
     let m = pendingMessages[i];
-    if ((typeof m) !== 'string') {
+    if ((typeof m) === 'function') {
+      m = m(iframe, iframeNr);
+    }
+    else if ((typeof m) !== 'string') {
       // For now. Could remove JSON.parse instead [3056MSDJ1].
       m = JSON.stringify(m);
     }
@@ -835,6 +888,7 @@ function sendToIframeImpl(iframe, initedArr: boolean[], pendingMessages,
   // Empty the array.
   pendingMessages.length = 0;
 }
+
 
 
 function findOneTimeLoginSecret() {
@@ -855,6 +909,7 @@ function findOneTimeLoginSecret() {
 }
 
 
+
 function findCommentToScrollTo() {
   const commentNrHashMatch = window.location.hash.match(/^#comment-(\d+)([#&].*)?$/);  // [2PAWC0]
   if (commentNrHashMatch) {
@@ -872,12 +927,20 @@ function findCommentToScrollTo() {
 }
 
 
+
 function scrollComments(rectToScrollIntoView, options /* CalcScrollOpts */) {
   // For a discussion about using <html> or <body>, see:
   // https://stackoverflow.com/questions/19618545/
   //    body-scrolltop-vs-documentelement-scrolltop-vs-window-pagyoffset-vs-window-scrol
   // COULD use  window.scrollY instead, that's maybe more future compatible,
   // see: https://stackoverflow.com/a/33462363/694469
+
+  // This currently works only with one single comments iframe — if more,
+  // then, currently we don't know which one to scroll.
+  if (numCommentsIframes > 1)
+    return;
+
+  const commentsIframe = iframeElms[FirstCommentsIframeNr];
   options.parent = document.documentElement.scrollTop ? document.documentElement : document.body;
   const iframeRect = commentsIframe.getBoundingClientRect();
   const rectWithOffset = {
