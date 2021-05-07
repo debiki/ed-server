@@ -123,9 +123,14 @@ tyns.fetchAndFillInCommentCounts(serverOrigin);
 var oneTimeLoginSecret;
 var postNrToFocus;  // RENAME to ...AfterCommentsLoaded
 
-var commentsIframe;
+let allUrlParams = '';
+let loadWeinre: Bo | U;
+
+let commentsIframe: HTMLIFrameElement;  // legacy
+let commentsIframes: (HTMLIFrameElement | U)[];
 var commentsIframeInited;  // dupl, remove, use Arr instead (contents dyn upd)
 var commentsIframeInitedArr = [false];
+let commentsIframesInited: (true | U)[];
 var editorIframe;
 var editorIframeInitedArr = [false];
 var editorWrapper;
@@ -179,6 +184,7 @@ addEventListener('scroll', messageCommentsIframeNewWinTopSize);
 addEventListener('message', onMessage, false);
 
 
+
 function loadCommentsCreateEditor() {
   debugLog("loadCommentsCreateEditor()");
   // Create <iframe>s for embedded comments and an embedded editor.
@@ -191,8 +197,26 @@ function loadCommentsCreateEditor() {
     commentsElems = document.getElementsByClassName('talkyard-comments');
   if (!commentsElems.length)
     return;
-  var commentsElem = commentsElems[0];
-  debugLog("found commentsElem");
+
+  const numCommentsIframes = commentsElems.length;
+  debugLog(`Found ${numCommentsIframes} Ty comment elems`);
+
+  commentsIframes = new Array(numCommentsIframes);
+  commentsIframesInited = new Array(numCommentsIframes);
+
+  let anyOk = false;
+  for (let i = 0; i < numCommentsIframes; ++i) {
+    const thisOneOk = intCommentIframes(commentsElems[i], i, numCommentsIframes > 1);
+    anyOk ||= thisOneOk;
+  }
+  if (anyOk) {
+    initEditorIframe(numCommentsIframes > 1);
+  }
+}
+
+
+
+function intCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   var embeddingUrl = window.location.origin + window.location.pathname + window.location.search;
   var embeddingUrlParam = 'embeddingUrl=' + embeddingUrl;
@@ -213,7 +237,8 @@ function loadCommentsCreateEditor() {
   var discussionId = commentsElem.getAttribute('data-discussion-id');
   if (/[\t\r\n]/.test(discussionId)) {
     var errorMessage = "Bad discussion id: " + discussionId + ' [TyEEMDIID]';
-    debugLog(errorMessage);
+    debugLog(errorMessage);  // could log error level
+    if (manyCommentsIframes) return false;
     throw Error(errorMessage);
   }
   var discIdParam = discussionId ? `discussionId=${discussionId}&` : '';
@@ -223,7 +248,8 @@ function loadCommentsCreateEditor() {
   var categoryRef = commentsElem.getAttribute('data-category');
   if (/[\t\r\n]/.test(categoryRef)) {
     var errorMessage = `Bad category ref: ${categoryRef} [TyEEMCATRFCL]`;
-    debugLog(errorMessage);
+    debugLog(errorMessage);  // could log error level
+    if (manyCommentsIframes) return false;
     throw Error(errorMessage);
   }
   const catRefParam = categoryRef ? `category=${categoryRef}&` : '';
@@ -237,12 +263,12 @@ function loadCommentsCreateEditor() {
 
   const logLevelParam = talkyardLogLevel ? `&logLevel=${talkyardLogLevel}` : '';
 
-  const allUrlParams =
+  allUrlParams =
           edPageIdParam + discIdParam + catRefParam + embeddingUrlParam +
           htmlClassParam + logLevelParam;
 
   var commentsIframeUrl = serverOrigin + '/-/embedded-comments?' + allUrlParams;
-  var loadWeinre = window.location.hash.indexOf('&loadWeinre') >= 0;  // [WEINRE]
+  loadWeinre = window.location.hash.indexOf('&loadWeinre') >= 0;  // [WEINRE]
   if (loadWeinre) {
     // Let's append the whole hash fragment — nice to see any client "name"
     // you can debug-include in the hash, in Weinre's debug targets list.
@@ -275,7 +301,9 @@ function loadCommentsCreateEditor() {
   });
 
   Bliss.start(commentsIframe, commentsElem);
-  debugLog("inserted commentsIframe");
+
+  commentsIframes[iframeNr] = commentsIframe;
+  debugLog(`Inserted commentsIframes[${iframeNr}]`);
 
   if (insecureSomethingErrMsg) {
     // If insecureTyIframeProbl, then for sure the comments won't load.
@@ -305,7 +333,12 @@ function loadCommentsCreateEditor() {
   });
 
   Bliss.start(loadingCommentsElem, commentsElem);
+  return true;
+}
 
+
+
+function initEditorIframe(manyCommentsIframes: Bo) {
   editorWrapper = Bliss.create('div', {
     id: 'ed-editor-wrapper',
     className: 'p_EdrIfrW',
@@ -335,7 +368,18 @@ function loadCommentsCreateEditor() {
   Bliss.inside(editorWrapper, document.body);
   debugLog("inserted editorWrapper");
 
-  var editorIframeUrl = serverOrigin + '/-/embedded-editor?' + allUrlParams;
+  var editorIframeUrl = serverOrigin + '/-/embedded-editor?';
+  if (manyCommentsIframes) {
+    // Add just log level?
+    // For now, so works with at least one comments iframe: (the last one?)
+    editorIframeUrl += allUrlParams;
+  }
+  else {
+    // Backw compat: Incl same params as for the comments iframe.
+    // Later: Could incl just log level here too, but for now (May 2021) too untested.
+    editorIframeUrl += allUrlParams;
+  }
+
   if (loadWeinre) {
     editorIframeUrl += location.hash;
   }
@@ -345,7 +389,8 @@ function loadCommentsCreateEditor() {
     name: 'edEditor',
     className: 'p_EdrIfr',
     style: {
-      display: 'block', // otherwise 'inline' —> some blank space below, because of descender spacing?
+      // Otherwise 'inline' —> some blank space below, because of descender spacing?
+      display: 'block',
       padding: 0,
       margin: 0,
       width: '100%',
@@ -367,8 +412,12 @@ function loadCommentsCreateEditor() {
 
 function removeCommentsAndEditor() {
   debugLog("removeCommentsAndEditor()");
-  if (commentsIframe) {
+  for (let i = 0; i < commentsIframes.length; ++i) {
+    const commentsIframe = commentsIframes[i];
     commentsIframe.remove();
+  }
+  commentsIframesInited = null;
+  if (commentsIframe) {
     commentsIframe = null;
     commentsIframeInited = false;
     commentsIframeInitedArr = [false];
@@ -490,7 +539,7 @@ function onMessage(event) {
   // COULD REFACTOR: Actually, child iframes can message each other directly;
   // need not send via the parent.
 
-  const iframe = findIframeThatSent(event);
+  const [iframe, iframeNr, isCommentsIframe] = findIframeThatSent(event);
 
   let assertIsFromEditorToComments = function() {};
   let assertIsFromCommentsToEditor = function() {};
@@ -502,7 +551,7 @@ function onMessage(event) {
     }
   };
   assertIsFromCommentsToEditor = function() {
-    if (iframe !== commentsIframe) {
+    if (!isCommentsIframe) {
       debugLog(`Bad msg dir [TyEMSGDIR2]: '${eventName}', ${JSON.stringify(eventData)}`);
       debugger;
     }
@@ -513,7 +562,7 @@ function onMessage(event) {
     if (iframe === editorIframe) {
       sendToComments(what);
     }
-    else if (iframe === commentsIframe) {
+    else if (isCommentsIframe) {
       sendToEditor(what);
     }
     else {
@@ -526,7 +575,11 @@ function onMessage(event) {
     case 'iframeInited':
       debugLog("got 'iframeInited' message");
 
-      if (iframe !== commentsIframe) {
+      // @ifdef DEBUG
+      if (isCommentsIframe === (iframe === editorIframe)) throw Error('TyE29MW06MRTG');
+      // @endif
+      // if (iframe !== commentsIframe) { ?
+      if (!isCommentsIframe) {
         editorIframeInitedArr = [true];
         return;
       }
@@ -534,6 +587,7 @@ function onMessage(event) {
       debugLog("it's the comments iframe");
       commentsIframeInited = true;
       commentsIframeInitedArr = [true];
+      commentsIframesInited[iframeNr] = true;
 
       // Any comment to scroll into view?
       //
@@ -724,12 +778,16 @@ function setIframeSize(iframe, dimensions) {
 }
 
 
-function findIframeThatSent(event) {  // [find_evt_ifrm]
+/// Returns: [iframe, index, is-comments-iframe]
+function findIframeThatSent(event): [HTMLIFrameElement, Nr, Bo] {  // [find_evt_ifrm]
   // See http://stackoverflow.com/a/18267415/694469
-  if (commentsIframe && commentsIframe.contentWindow === event.source)
-    return commentsIframe;
+  for (let i = 0; i < commentsIframes.length; ++i) {
+    const comIfr = commentsIframes[i];
+    if (comIfr && comIfr.contentWindow === event.source)
+      return [comIfr, i, true];
+  }
   if (editorIframe && editorIframe.contentWindow === event.source)
-    return editorIframe;
+    return [editorIframe, 0, false];
 }
 
 
