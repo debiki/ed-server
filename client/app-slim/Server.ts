@@ -37,7 +37,7 @@ const XsrfTokenHeaderName = 'X-XSRF-TOKEN'; // CLEAN_UP rename to X-Ty-Xsrf-Toke
 const SessionIdHeaderName = 'X-Ty-Sid';
 const AvoidCookiesHeaderName = 'X-Ty-Avoid-Cookies';
 
-function getPageId(): PageId {
+export function getPageId(): PageId | U {   // move elsewhere?
   return eds.embeddedPageId || // [4HKW28]
       ReactStore.allData().currentPageId;
 }
@@ -1596,6 +1596,10 @@ export function loadDraftAndGuidelines(draftLocator: DraftLocator, writingWhat: 
   const toUserIdParam = loc.toUserId ? '&toUserId=' + loc.toUserId : '';
   const categoryParam = categoryId ? '&categoryId=' + categoryId : '';
 
+  // We don't include any embedding url or discussion id — saving drafts
+  // for pages that don't yet exist (lazy created embedded discussions)
+  // hasn't been implemented.  [BLGCMNT1]
+
   const url = `/-/load-draft-and-guidelines?writingWhat=${writingWhat}&pageRole=${pageRole}` +
     draftTypeParam + pageIdParam + postNrParam + postIdParam + toUserIdParam + categoryParam;
 
@@ -1605,6 +1609,8 @@ export function loadDraftAndGuidelines(draftLocator: DraftLocator, writingWhat: 
 }
 
 
+// CLEAN_UP pass page id, so simpler to understand if in emb emb editor and there're
+// many discussions on different Ty iframes, different Ty page ids. [manyiframes_pageid]
 export function loadDraftAndText(postNr: PostNr,
       onDone: (response: LoadDraftAndTextResponse) => void) {
   get(`/-/load-draft-and-text?pageId=${getPageId()}&postNr=${postNr}`, onDone, undefined, {
@@ -1704,8 +1710,8 @@ export function loadVoters(postId: PostId, voteType: PostVoteType,
 }
 
 
-export function saveEdits(editorsPageId: PageId, postNr: number, text: string,
-      deleteDraftNr: DraftNr, doneCallback: () => void) {
+export function saveEdits(editorsPageId: PageId, postNr: PostNr, text: St,
+      deleteDraftNr: DraftNr, onOK: () => Vo, sendToWhichFrame?: MainWin) {
   postJson('/-/edit', {
     data: {
       pageId: editorsPageId ||
@@ -1718,9 +1724,9 @@ export function saveEdits(editorsPageId: PageId, postNr: number, text: string,
     success: (editedPost) => {
       // This hides the editor and places back the orig post [6027TKWAPJ5]
       // — there'll be a short flash-of-original-version:
-      doneCallback();
+      onOK();
       // ... until here we upsert the edited version instead:
-      ReactActions.handleEditResult(editedPost);
+      ReactActions.handleEditResult(editedPost, sendToWhichFrame);
     }
   });
 }
@@ -1783,6 +1789,7 @@ export function saveReply(editorsPageId: PageId, postNrs: PostNr[], text: string
           // Old (as of Jan 2020), keep for a while?:
           getPageId() || undefined,
       // Incl altPageId and embeddingUrl, so any embedded page can be created lazily. [4AMJX7]
+      // Changed, in emb editor, if many comments iframes  [many_embcom_iframes]
       discussionId: eds.embeddedPageAltId || undefined,  // undef not ''
       embeddingUrl: eds.embeddingUrl || undefined,
       lazyCreatePageInCatId: eds.lazyCreatePageInCatId,

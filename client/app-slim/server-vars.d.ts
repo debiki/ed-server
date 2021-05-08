@@ -22,6 +22,8 @@ interface PageSession  {
 
 interface __MainWinInterface extends Window {
   typs: PageSession;
+  theStore: Store;
+  eds: ServerVars;
 }
 
 type MainWin = __MainWinInterface & typeof globalThis;

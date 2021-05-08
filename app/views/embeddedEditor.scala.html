@@ -23,7 +23,10 @@
 @tpi.debikiMeta
 @tpi.debikiStyles
 @tpi.stylesheetBundle("styles.css")
+
+@* Won't work any more: anyEmbeddedPageId,  with [many_embcom_iframes]  *@
 @tpi.debikiScriptsInHead(isInEmbeddedEditor = true, anyEmbeddedPageId = tpi.anyEmbeddedPageId)
+
 @* [script_src_self]
 <script>
 eds.isInEmbeddedEditor = true;

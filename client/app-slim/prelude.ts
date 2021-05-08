@@ -310,14 +310,25 @@ export function getMainWin(): MainWin {  // QUICK RENAME to win_getMainWin()
     // an "accessing a cross-origin frame" error. Fine, just ignore.
   }
 
-  if (win.name === 'edEditor') {
-    // We're in the embedded editor iframe window. The parent window is the embedding window,
+  if (win.name !== lookingForName) {
+    // We're in the embedded editor iframe window, or in an embedded comments iframe
+    // but not the first one (which is the "main" one).
+    // @ifdef DEBUG
+    dieIf(win.name !== 'edEditor' && !/edComments-[0-9]+/.test(win.name), 'TyE7S2RME75');
+    // @endif
+    // The parent window is the embedding window,
     // e.g. a blog post with comments embedded. And it should have another child window, namely
     // the main window, with all embedded comments.
     // @ifdef DEBUG
     dieIf(!win.parent, 'TyE7KKWGCE2');
     // @endif
-    win = win.parent[lookingForName];
+    try {
+      win = win.parent[lookingForName];
+    }
+    catch (ex) {
+      // Maybe got deleted by scripts on the embedding page? Then what
+      logW(`Main win '${lookingForName}' not found [TyE0MAINWIN]`);
+    }
   }
 
   // @ifdef DEBUG
@@ -325,6 +336,18 @@ export function getMainWin(): MainWin {  // QUICK RENAME to win_getMainWin()
   // @endif
 
   return <MainWin> win;
+}
+
+
+export function win_getEditorWin(): MainWin | U {
+  if (window.name === 'edEditor') {
+    return window as MainWin;
+  }
+  // Any editor iframe might not yet have been loaded, so this might be undefined?
+  let win;
+  try { win = window.parent['edEditor']; }
+  catch (ignored) {}
+  return win;
 }
 
 

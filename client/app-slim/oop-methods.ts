@@ -730,8 +730,12 @@ export function store_mainSiteSection(store: Store): SiteSection {
 
 
 
-export function store_isNoPage(store: Store): boolean {
-  return !store.currentPageId || store.currentPageId === EmptyPageId;
+export function store_isNoPage(store: Store): Bo {
+  return isNoPage(store.currentPageId);
+}
+
+export function isNoPage(pageId: PageId): Bo {
+  return !pageId || pageId === EmptyPageId;
 }
 
 
@@ -1019,7 +1023,7 @@ export function store_findCatsWhereIMayCreateTopics(store: Store): Category[] {
 export function store_getPostId(store: Store, pageId: PageId, postNr: PostNr): PostId | U {
   // If we're on a blog bost with embedded comments, then, the Talkyard embedded
   // comments page might not yet have been created.
-  if (!pageId)
+  if (isNoPage(pageId))
     return undefined;
 
   // The page might not be the current page, if the editor is open and we've
@@ -1144,7 +1148,8 @@ interface MakePreviewParams {
 
 
 function store_makePreviewPost({
-    store, parentPostNr, safePreviewHtml, unsafeSource,
+    store,   // REFACTOR CLEAN_UP use autorId param instead, no need for the whole store [042MSED3M]
+    parentPostNr, safePreviewHtml, unsafeSource,
     newPostType, isForDraftNr, isEditing }: MakePreviewParams): Post {
 
   dieIf(!newPostType, "Don't use for edit previews [TyE4903KS]");

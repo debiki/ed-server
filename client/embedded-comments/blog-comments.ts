@@ -210,12 +210,16 @@ function loadCommentsCreateEditor() {
   iframesInited = new Array(numPlusOne);
   pendingIframeMessages = new Array(numPlusOne);
 
+  // If many, create an empty <iframe> for the main win?
+
   let anyOk = false;
   for (let i = 0; i < numCommentsIframes; ++i) {
     // The editor iframe is nr 0, so start at 1.
     const ifrNr = i + 1;
     const thisOneOk = intCommentIframe(commentsElems[i], ifrNr, numCommentsIframes > 1);
     anyOk ||= thisOneOk;
+    // WAIT with the other iframes, until the first one has been loaded
+    // — otherwise,  getMainWinStore()  fails.
   }
 
   if (anyOk) {
@@ -288,7 +292,7 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   // no messages at all from it.
   const commentsIframe = Bliss.create('iframe', {
     id: 'ed-embedded-comments',
-    name: 'edComments',
+    name: 'edComments' + (iframeNr >= 2 ? '-' + iframeNr : ''),
     className: 'p_CmtsIfr ty_CmtsIfr',   // DEPRECATE old name p_CmtsIfr
     // A title attr, for better accessibility. See: https://www.w3.org/TR/WCAG20-TECHS/H64.html
     title: discussionTitle || "Comments",
@@ -590,23 +594,19 @@ function onMessage(event) {
   };
   // @endif
 
-  function sendToOtherIframe(what) {
-    if (iframe === editorIframe) {
-      sendToComments(what);
-    }
-    else if (isFromCommentsIframe) {
-      sendToEditor(what);
-    }
-    else {
-      // Is this in the future and there's now an iframe for one
-      // of the sidebars?
-    }
-  }
-
   switch (eventName) {
     case 'iframeInited':
       debugLog(`Iframe nr ${iframeNr} inited`);
       iframesInited[iframeNr] = true;
+
+      if (iframeNr === FirstCommentsIframeNr) {
+        // Create all remaining iframes.
+        // then return;
+      }
+      else {
+        // If *all* iframes inited (except for any broken iframe)
+        // proceed below.
+      }
 
       // @ifdef DEBUG
       if (isFromCommentsIframe === (iframe === editorIframe)) throw Error('TyE29MW06MRTG');
@@ -632,13 +632,17 @@ function onMessage(event) {
       // Log in via only one comments iframe — otherwise there'd be races
       // and unnecessarily many server requests.
       //
-      if (talkyardAuthnToken) {
+      if (iframeNr !== FirstCommentsIframeNr) {
+        // Noop.
+      }
+      else if (talkyardAuthnToken) {
         sendToComments(
               JSON.stringify(['loginWithAuthnToken', talkyardAuthnToken]));
       }
       else if (oneTimeLoginSecret) {
         // Tell the comments iframe to login, using our one-time secret.  [306KUD244]
-        sendToComments(`["loginWithOneTimeSecret", "${oneTimeLoginSecret}"]`);
+        sendToOneIframe(iframe, FirstCommentsIframeNr,
+              `["loginWithOneTimeSecret", "${oneTimeLoginSecret}"]`);
       }
       else {
         // Resume any old session.
@@ -662,7 +666,8 @@ function onMessage(event) {
         if (sessionStr) {
           try {
             const session = JSON.parse(sessionStr);
-            sendToComments(['resumeWeakSession', session]);
+            sendToOneIframe(iframe, FirstCommentsIframeNr,
+                  ['resumeWeakSession', session]);
           }
           catch (ex) {
             debugLog(
@@ -670,6 +675,7 @@ function onMessage(event) {
           }
         }
       }
+
       break;
     case 'setIframeSize':
       setIframeSize(iframe, eventData);
@@ -734,7 +740,7 @@ function onMessage(event) {
       catch (ex) {
         debugLog(`Error setting 'talkyardSession' in  theStorage [TyESETWKSID]`, ex);
       }
-      sendToOtherIframe(event.data);
+      sendToOtherIframes(event.data, iframeNr);
       break;
     case 'logoutClientSideOnly':
       try {
@@ -743,7 +749,7 @@ function onMessage(event) {
       catch (ex) {
         debugLog(`Error removing 'talkyardSession' from  theStorage [TyERMWKSID]`, ex);
       }
-      sendToOtherIframe(event.data);
+      sendToOtherIframes(event.data, iframeNr);
       if (isFromCommentsIframe) {
         showEditor(false);
       }
@@ -792,7 +798,7 @@ function onMessage(event) {
       sendToComments(event.data);
       break;
     case 'patchTheStore':
-      sendToOtherIframe(event.data);
+      sendToOtherIframes(event.data, iframeNr);
       break;
   }
 }
@@ -822,26 +828,34 @@ function findIframeThatSent(event): [HTMLIFrameElement, Nr] {  // [find_evt_ifrm
 
 
 
-function sendToComments(message) {
+function sendToOtherIframes(message, skipIframeNr: Nr) {
   // For now, send to all. Later, could inspect the message and send only
   // to the affected comments iframes (e.g. a matching discussion id).
-  for (let i = FirstCommentsIframeNr; i < iframeElms.length; ++i) {
+  for (let i = 0; i < iframeElms.length; ++i) {
+    if (i === skipIframeNr) {
+      continue;
+    }
     const commentsIframe = iframeElms[i];
-    sendToIframeImpl(
+    sendToOneIframe(
           commentsIframe, i, message);
   }
 }
 
 
+function sendToComments(message) {
+  sendToOtherIframes(message, EditorIframeNr);
+}
+
+
 
 function sendToEditor(message) {
-  sendToIframeImpl(
+  sendToOneIframe(
         editorIframe, EditorIframeNr, message);
 }
 
 
 
-function sendToIframeImpl(iframe, iframeNr: Nr, message: any | null) {
+function sendToOneIframe(iframe, iframeNr: Nr, message: any | null) {
   //initedArr: boolean[], pendingMessages,
   // Dupl code (6029084583).
 
@@ -869,7 +883,7 @@ function sendToIframeImpl(iframe, iframeNr: Nr, message: any | null) {
 
   if (!iframeInited) {
     setTimeout(function() {
-      sendToIframeImpl(iframe, iframeNr, null);
+      sendToOneIframe(iframe, iframeNr, null);
     }, 500);
     return;
   }

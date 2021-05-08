@@ -365,6 +365,7 @@ declare namespace debiki2 {
   var userId_isGuest;
   function store_isFeatFlagOn(store: Store, featureFlag: St): Bo;
   function store_isNoPage(store: Store): boolean;
+  function isNoPage(pageId: PageId): Bo;
   function store_isPageDeleted(store: Store): boolean;
   function store_canDeletePage(store: Store): boolean;
   function store_canUndeletePage(store: Store): boolean;

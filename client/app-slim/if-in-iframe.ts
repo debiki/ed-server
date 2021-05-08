@@ -35,7 +35,8 @@ export function startIframeMessages() {
 
 
 function onMessage(event) {
-  if (event.origin !== eds.embeddingOrigin)
+  const isFromOtherIframe = event.origin === location.origin;
+  if (event.origin !== eds.embeddingOrigin && !isFromOtherIframe)
     return;
 
   // The message is a "[eventName, eventData]" string because IE <= 9 doesn't support
@@ -48,9 +49,13 @@ function onMessage(event) {
     eventData = json[1];
   }
   catch (error) {
-    // This isn't a message from Debiki.
+    // Not from Talkyard.
     return;
   }
+
+  // We can access other Ty frames  [many_embcom_iframes], but if the sener is
+  // window.parent, we cannot access it — then, set to undefined.
+  const inWhichFrame = isFromOtherIframe ? event.source : undefined;
 
   switch (eventName) {
     case 'loginWithAuthnToken':
@@ -121,7 +126,7 @@ function onMessage(event) {
       var postNr = eventData[0];
       var inclInReply = eventData[1];
       var postType = eventData[2] ?? PostType.Normal;
-      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType);
+      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, inWhichFrame);
       break;
     case 'handleReplyResult':
       // This message is sent from the embedded editor <iframe> to the comments
@@ -133,7 +138,7 @@ function onMessage(event) {
     case 'editorEditPost':
       // Sent from an embedded comments page to the embedded editor.
       var postNr = eventData;
-      ReactActions.editPostWithNr(postNr);
+      ReactActions.editPostWithNr(postNr, inWhichFrame);
       break;
     case 'onEditorOpen':
       // Sent from the embedded editor to the comments iframe.

@@ -192,9 +192,11 @@ class SiteTpi protected (
           "isRtl" -> isRtlLanguage, // @{ if (tpi.isRtlLanguage) "true" else "false" },
 
           "embeddingOrigin" -> JsStringOrNull(anyEmbeddingOrigin), //  @Html(embeddingOriginOrUndefined),
+          // These are changed dynamically in an editor iframe if [many_embcom_iframes].
           "embeddingUrl" -> JsStringOrNull(anyEmbeddingUrl),  //  @Html(embeddingUrlOrUndefined),
           "embeddedPageId" -> JsStringOrNull(anyEmbeddedPageId),
           "embeddedPageAltId" -> JsStringOrNull(anyDiscussionId), // @Html(discussionIdOrUndefined),
+          // ----------------------
           "lazyCreatePageInCatId" -> JsNumberOrNull(lazyCreatePageInCatId), //@Html(lazyCreatePageInCatId),
 
           "assetUrlPrefix" -> assetUrlPrefix,

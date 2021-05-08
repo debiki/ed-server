@@ -170,6 +170,7 @@ interface DraftLocator {
   // This is useful on embedded blog comments pages, if the Talkyard page hasn't yet
   // been created, so there's no page id. [BLGCMNT1]
   embeddingUrl?: string;
+  discussionId?: St;
   postNr?: PostNr;
 }
 
