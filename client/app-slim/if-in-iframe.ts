@@ -105,7 +105,7 @@ function onMessage(event) {
       break;
     case 'logoutClientSideOnly':
       // Sent from the comments iframe to the editor iframe, when one logs out in the comments iframe.
-      ReactActions.logoutClientSideOnly();
+      ReactActions.logoutClientSideOnly('SkipSend');
       break;
     case 'scrollToPostNr':  // rename to loadAndShowPost  ? + add  anyShowPostOpts?: ShowPostOpts
       var postNr = eventData;

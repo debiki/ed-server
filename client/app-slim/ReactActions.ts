@@ -118,12 +118,12 @@ export function logout() {
 }
 
 
-export function logoutClientSideOnly() {
+export function logoutClientSideOnly(skipSend?: 'SkipSend') {
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.Logout
   });
 
-  if (eds.isInEmbeddedCommentsIframe) {
+  if (eds.isInEmbeddedCommentsIframe && skipSend !== 'SkipSend') {
     // Tell the editor iframe that we've logged out.
     sendToOtherIframes(['logoutClientSideOnly', null]);
 

@@ -85,6 +85,13 @@ const debugLog: (...args) => void =
       console.log.apply(console, args);
     };
 
+const j2s = JSON.stringify;
+
+const logT = debugLog; // log trace — for now, it's the same
+const logD = debugLog; // log debug
+const logW = debugLog; // warning
+const logE = debugLog; // error
+
 debugLog("Starting... (disable logging by setting talkyardLogLevel = 'warn')");
 
 const d = { i: debiki.internal };
@@ -128,12 +135,14 @@ let loadWeinre: Bo | U;
 
 const EditorIframeNr = 0;
 const FirstCommentsIframeNr = 1;
+// 2, 3, 4 etc are other comments iframes.
 let numCommentsIframes = 0;
 
-let loadingElms: (HElm | U)[];
-let iframeElms: (HTMLIFrameElement | U)[];
-let iframesInited: (Bo | U)[];
-let pendingIframeMessages: Ay[][] = [];
+let commentsElems: HTMLCollectionOf<Element> | U | Nl;
+let loadingElms: (HElm | U)[] | U;
+let iframeElms: (HTMLIFrameElement | U)[] | U;
+let iframesInited: (Bo | U)[] | U;
+let pendingIframeMessages: Ay[][] | U;
 
 var editorIframe;
 var editorWrapper;
@@ -195,7 +204,7 @@ function loadCommentsCreateEditor() {
   // For now, choose the first .talkyard-comments only, because
   // the embedded editor will be bound to one page only, and two editors
   // seems complicated.
-  var commentsElems = document.getElementsByClassName('ed-comments'); // old name [2EBG05]
+  commentsElems = document.getElementsByClassName('ed-comments'); // old name [2EBG05]
   if (!commentsElems.length)
     commentsElems = document.getElementsByClassName('talkyard-comments');
   if (!commentsElems.length)
@@ -211,20 +220,22 @@ function loadCommentsCreateEditor() {
   pendingIframeMessages = new Array(numPlusOne);
 
   // If many, create an empty <iframe> for the main win?
+  intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numCommentsIframes > 1);
+  initEditorIframe(numCommentsIframes > 1);
+}
 
-  let anyOk = false;
-  for (let i = 0; i < numCommentsIframes; ++i) {
-    // The editor iframe is nr 0, so start at 1.
-    const ifrNr = i + 1;
-    const thisOneOk = intCommentIframe(commentsElems[i], ifrNr, numCommentsIframes > 1);
-    anyOk ||= thisOneOk;
-    // WAIT with the other iframes, until the first one has been loaded
-    // — otherwise,  getMainWinStore()  fails.
+
+
+function loadMoreCommentIframes() {
+  // These wants to access the first, "main", comments iframe.
+  // So don't create them, until that one has been inited.
+  for (let i = 1; i < commentsElems.length; ++i) {
+    intCommentIframe(
+          commentsElems[i], i + FirstCommentsIframeNr, numCommentsIframes > 1);
   }
 
-  if (anyOk) {
-    initEditorIframe(numCommentsIframes > 1);
-  }
+  // No need to hang on to the comments elems.
+  commentsElems = null;
 }
 
 
@@ -385,7 +396,7 @@ function initEditorIframe(manyCommentsIframes: Bo) {
   var editorIframeUrl = serverOrigin + '/-/embedded-editor?';
   if (manyCommentsIframes) {
     // Add just log level?
-    // For now, so works with at least one comments iframe: (the last one?)
+    // For now, so works as before, if just 1 comments iframe.
     editorIframeUrl += allUrlParams;
   }
   else {
@@ -599,21 +610,21 @@ function onMessage(event) {
       debugLog(`Iframe nr ${iframeNr} inited`);
       iframesInited[iframeNr] = true;
 
-      if (iframeNr === FirstCommentsIframeNr) {
-        // Create all remaining iframes.
-        // then return;
-      }
-      else {
-        // If *all* iframes inited (except for any broken iframe)
-        // proceed below.
+      if (iframeNr <= FirstCommentsIframeNr && iframesInited[0] && iframesInited[1]) {
+        if (numCommentsIframes >= 2) {
+          loadMoreCommentIframes();
+        }
       }
 
-      // @ifdef DEBUG
-      if (isFromCommentsIframe === (iframe === editorIframe)) throw Error('TyE29MW06MRTG');
-      // @endif
-      // if (iframe !== commentsIframe) { ?
-      if (!isFromCommentsIframe)
-        return;
+      // If something prevented the editor from loading, let's continue anyway,
+      // so the comments at least appear, although wouldn't be possible to reply.
+      // (So start at i = FirstCommentsIframeNr, not 0.)
+      for (let i = FirstCommentsIframeNr; i < iframesInited.length; ++i) {
+        if (!iframesInited[i])
+          return;
+      }
+
+      debugLog(`All comment iframes inited — continuing ...`);
 
       // Any comment to scroll into view?
       //
@@ -641,7 +652,7 @@ function onMessage(event) {
       }
       else if (oneTimeLoginSecret) {
         // Tell the comments iframe to login, using our one-time secret.  [306KUD244]
-        sendToOneIframe(iframe, FirstCommentsIframeNr,
+        sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr,
               `["loginWithOneTimeSecret", "${oneTimeLoginSecret}"]`);
       }
       else {
@@ -666,7 +677,7 @@ function onMessage(event) {
         if (sessionStr) {
           try {
             const session = JSON.parse(sessionStr);
-            sendToOneIframe(iframe, FirstCommentsIframeNr,
+            sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr,
                   ['resumeWeakSession', session]);
           }
           catch (ex) {
@@ -678,6 +689,8 @@ function onMessage(event) {
 
       break;
     case 'setIframeSize':
+      //logT(`setIframeSize ${j2s(eventData)}`);
+
       setIframeSize(iframe, eventData);
       // The comments iframe wants to know the real win dimensions, so it can position modal
       // dialogs on screen. But wait until the iframe has been resized — because if
@@ -718,6 +731,7 @@ function onMessage(event) {
       break;
       */
     case 'justLoggedIn':
+      logT(`justLoggedIn`);
       try {
         const item = {
           pubSiteId: eventData.pubSiteId,
