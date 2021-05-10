@@ -652,7 +652,7 @@ function onMessage(event) {
       }
       else if (oneTimeLoginSecret) {
         // Tell the comments iframe to login, using our one-time secret.  [306KUD244]
-        sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr,
+        sendToMainIframe(
               `["loginWithOneTimeSecret", "${oneTimeLoginSecret}"]`);
       }
       else {
@@ -677,7 +677,7 @@ function onMessage(event) {
         if (sessionStr) {
           try {
             const session = JSON.parse(sessionStr);
-            sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr,
+            sendToMainIframe(
                   ['resumeWeakSession', session]);
           }
           catch (ex) {
@@ -865,6 +865,12 @@ function sendToComments(message) {
 function sendToEditor(message) {
   sendToOneIframe(
         editorIframe, EditorIframeNr, message);
+}
+
+
+
+function sendToMainIframe(message: Ay) {
+  sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr, message);
 }
 
 
