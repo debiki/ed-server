@@ -42,6 +42,12 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
 
 
 
+  /** Always allowed, also if API not enabled —
+    * Needed for embedded comments signup-login to work
+    * if 3rd party cookies blocked. [306KUD244]
+    * Otherwise, works only if this server has generated a secret, that is,
+    * API enabled.
+    */
   def apiv0_loginWithSecret: Action[U] =
         GetActionRateLimited(RateLimits.NoRateLimits) { request: GetRequest =>
 
@@ -56,13 +62,6 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
 
     def getOnlyOrThrow(queryParam: String, errorCode: String): String =
       getOnly(queryParam) getOrThrowBadArgument(errorCode, queryParam)
-
-    // Let's always allow one-time login — works only if this server has generated a secret.
-    // Needed for embedded comments signup-login to work if 3rd party cookies blocked. [306KUD244]
-    val isOneTimeLogin = request.underlying.path == "login-with-secret"
-
-    throwForbiddenIf(!settings.enableApi && !isOneTimeLogin, "TyEAPIDSBLD",
-          s"API not enabled. You tried to call: ${request.method} ${request.uri}")
 
     // Fix indentation in a separate Git commit.
     {
