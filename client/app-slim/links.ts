@@ -40,7 +40,7 @@ export function origin(): string {
   // COULD_OPTIMIZE [many_embcom_iframes]  cache, client side, so won't need to access
   // a different iframe all the time, if many iframes with embedded Ty comments.
   //
-  const mainStore: Store = getMainWinStore();
+  const mainStore: EmbSessionStore = getMainWinStore();
   return mainStore.embeddedOriginOrEmpty;  // [ONESTORE]
 }
 

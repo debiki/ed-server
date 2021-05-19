@@ -41,9 +41,9 @@ const htmlElem = document.getElementsByTagName('html')[0];
 declare const EventEmitter3; // don't know why, but the TypeScript defs doesn't work.
 export const ReactStore = new EventEmitter3();
 
-export function getMainWinStore(): Store {  // RENAME QUICK to win_getMainWinStore()
+export function getMainWinStore(): EmbSessionStore {  // RENAME QUICK to win_getSessWinStore()
   const mainWin = getMainWin();
-  return mainWin.debiki2.ReactStore.allData();
+  return mainWin.theStore;
 }
 
 type StoreStateSetter = (store: Store) => void;
@@ -94,6 +94,19 @@ store.postsToUpdate = {};
 if (store.user && !store.me) store.me = store.user; // try to remove
 if (!store.me) {
   store.me = makeStranger(store);
+  // This is safe and cannot fail, still, try-catch for now, new code.
+  // DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
+  try {
+    const sessWin = getMainWin();
+    const sessStore: EmbSessionStore = sessWin.theStore;
+    if (_.isString(sessStore.me)) {  // [emb_ifr_shortcuts]
+      sessWin.typs.xsrfTokenIfNoCookies = typs.xsrfTokenIfNoCookies;
+      sessStore.me = store.me;
+    }
+  }
+  catch (ex) {
+    logW(`Multi iframe error? [TyEMANYIFR]`, ex)
+  }
 }
 store.user = store.me; // try to remove
 

@@ -1096,7 +1096,7 @@ export function postType_toDraftType(postType: PostType): DraftType | undefined 
 }
 
 
-export function store_makePostForDraft(store: Store, draft: Draft): Post | null {
+export function store_makePostForDraft(store: EmbSessionStore, draft: Draft): Post | null {
   const locator: DraftLocator = draft.forWhat;
   const parentPostNr = locator.postNr;
 
@@ -1135,7 +1135,7 @@ export function post_makePreviewIdNr(parentNr: PostNr, newPostType: PostType): P
 
 
 interface MakePreviewParams {
-  store: Store;
+  store: EmbSessionStore;
   parentPostNr?: PostNr;
   safePreviewHtml?: string;
   unsafeSource?: string;

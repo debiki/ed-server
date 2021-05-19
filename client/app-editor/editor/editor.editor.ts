@@ -187,6 +187,12 @@ export const Editor = createFactory<any, EditorState>({
   },
 
   getMainStore(inWhichFrame?: MainWin): Store {
+    /*
+    // @ifdef DEBUG
+    // Later: Replace  getMainWinStore() below with just ReactStore.allData()?
+    dieIf(eds.isInIframe && !inWhichFrame && !this.state.inWhichFrame, 'TyE604RMJ46');
+    // @endif
+    */
     // If this.state hasn't yet been updated, we'll use the inWhichFrame param.
     return inWhichFrame?.theStore || (    // [ONESTORE]  [many_embcom_iframes]
               this.state.inWhichFrame ?

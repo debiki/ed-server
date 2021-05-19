@@ -275,7 +275,7 @@ export function win_isLoginPopup(): Bo {
  * are made from the editor iframe and login popup wins too, not just the main
  * comments win.
  */
-export function getMainWin(): MainWin {  // QUICK RENAME to win_getMainWin()
+export function getMainWin(): MainWin {  // QUICK RENAME to win_getSidWin()
   // Maybe there're no iframes and we're already in the main win?
   // (window.opener might still be defined though — could be an embedded
   // comments iframe, in another browser tab. So if we were to continue below,
@@ -314,7 +314,8 @@ export function getMainWin(): MainWin {  // QUICK RENAME to win_getMainWin()
     // We're in the embedded editor iframe window, or in an embedded comments iframe
     // but not the first one (which is the "main" one).
     // @ifdef DEBUG
-    dieIf(win.name !== 'edEditor' && !/edComments-[0-9]+/.test(win.name), 'TyE7S2RME75');
+    dieIf(win.name !== 'edEditor' && !/edComments-[0-9]+/.test(win.name),
+          `This window has an unexpected name: '${win.name}' TyE7S2RME75`);
     // @endif
     // The parent window is the embedding window,
     // e.g. a blog post with comments embedded. And it should have another child window, namely

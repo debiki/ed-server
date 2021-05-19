@@ -79,6 +79,10 @@ export function loadMyself(afterwardsCallback?) {
   // deleted by the server.)
 
   Server.loadMyself((user) => {
+    // @ifdef DEBUG
+    // Might happen if there was no weakSessionId, and also, no cookie.
+    dieIf(!user, 'TyE4032SMH57');
+    // @endif
     if (isInSomeEmbCommentsIframe()) {
       // Tell the embedded comments or embedded editor iframe that we just logged in,
       // also include the session id, so Talkyard's script on the embedding page
@@ -87,6 +91,9 @@ export function loadMyself(afterwardsCallback?) {
       const mainWin = getMainWin();
       const typs: PageSession = mainWin.typs;
       const weakSessionId = typs.weakSessionId;
+      if (mainWin !== window) {
+        mainWin.theStore.me = _.cloneDeep(user);
+      }
       sendToOtherIframes([
         'justLoggedIn', { user, weakSessionId, pubSiteId: eds.pubSiteId }]);  // [JLGDIN]
     }
@@ -99,6 +106,9 @@ export function loadMyself(afterwardsCallback?) {
 
 
 export function setNewMe(user) {
+  // @ifdef DEBUG
+  dieIf(!user, `setNewMe(nothing) TyE60MRJ46RS`);
+  // @endif
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.NewMyself,
     user: user
@@ -1218,7 +1228,7 @@ export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boole
   }
   let draftPost: Post | U;
   if (deleteDraftPost) {
-    const store: Store = getMainWinStore();  // only author id used  [042MSED3M]
+    const store: EmbSessionStore = getMainWinStore();  // only author id used  [042MSED3M]
         // ... so works fine, also if from the wrong iframe. Bit messy, should clean up.
     draftPost = store_makePostForDraft(store, draft);  // [60MNW53]
   }

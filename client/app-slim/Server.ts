@@ -720,13 +720,13 @@ export function addAnyNoCookieHeaders(headers: { [headerName: string]: St }) {  
   // @endif
 
   const typs: PageSession = mainWin.typs;
-  const currentPageXsrfToken = typs.xsrfTokenIfNoCookies;
-  const currentPageSid = typs.weakSessionId;
+  const currentPageXsrfToken: St | U = typs.xsrfTokenIfNoCookies;
+  const currentPageSid: St | U = typs.weakSessionId;
 
   if (!win_canUseCookies(mainWin)) {
     headers[AvoidCookiesHeaderName] = 'Avoid';
     // Not sure if can have been set to xsrf cookie value already? So skip if set.
-    if (!headers[XsrfTokenHeaderName]) {
+    if (!headers[XsrfTokenHeaderName] && currentPageXsrfToken) {
       headers[XsrfTokenHeaderName] = currentPageXsrfToken;
     }
   }
@@ -1341,7 +1341,7 @@ export function savePageNotfPrefUpdStoreIfSelf(memberId: UserId, target: PageNot
   // also include any alt page id, and the embedding url. [4AMJX7]
   if (notfPref.pageId === EmptyPageId) {
     // COULD instead:
-    // const serverVars = getMainWin().eds;
+    // const serverVars = getMainWin().eds;   NO remove  MainWin.eds
     postData.discussionId = eds.embeddedPageAltId || undefined;  // undef not ''
     postData.embeddingUrl = eds.embeddingUrl || undefined;
     postData.lazyCreatePageInCatId = eds.lazyCreatePageInCatId;

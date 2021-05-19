@@ -126,7 +126,7 @@ declare namespace debiki2 {
 
   function win_isLoginPopup(): Bo;
   function getMainWin(): MainWin;
-  function getMainWinStore(): Store;
+  function getMainWinStore(): EmbSessionStore;
   function win_canUseCookies(win: MainWin): boolean;
 
   function getNowMs(): WhenMs;

@@ -138,6 +138,8 @@ const FirstCommentsIframeNr = 1;
 // 2, 3, 4 etc are other comments iframes.
 let numCommentsIframes = 0;
 
+let sessionIframeInited: Bo | U;
+let sessionIframe: HTMLIFrameElement | U | Nl;
 let commentsElems: HTMLCollectionOf<Element> | U | Nl;
 let loadingElms: (HElm | U)[] | U;
 let iframeElms: (HTMLIFrameElement | U)[] | U;
@@ -198,6 +200,41 @@ addEventListener('message', onMessage, false);
 
 
 function loadCommentsCreateEditor() {
+  createSessionFrame();
+}
+
+
+
+function createSessionFrame() {
+  if (sessionIframe)
+    return;
+
+  sessionIframe = Bliss.create('iframe', {
+    id: 'talkyard-session',
+    name: 'edComments',
+    title: "Embpty comments helper frame",
+    src: serverOrigin + '/-/session-iframe',
+    height: 0, // don't `hide()` [.hdn_iframe]
+    style: {
+      padding: 0,
+      margin: 0,
+      width: '100%',
+      border: 'none',
+      overflow: 'hidden'
+    },
+    allowtransparency: 'true',
+    frameborder: 0,
+    scrolling: 'no',
+    horizontalscrolling: 'no',
+    verticalscrolling: 'no'
+  });
+
+  Bliss.inside(sessionIframe, document.body);
+}
+
+
+
+function loadFirstCommentsIframe() {
   debugLog("loadCommentsCreateEditor()");
   // Create <iframe>s for embedded comments and an embedded editor.
   // Show a "Loading comments..." message until comments loaded.
@@ -220,6 +257,7 @@ function loadCommentsCreateEditor() {
   pendingIframeMessages = new Array(numPlusOne);
 
   // If many, create an empty <iframe> for the main win?
+  createSessionFrame();
   intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numCommentsIframes > 1);
   initEditorIframe(numCommentsIframes > 1);
 }
@@ -300,10 +338,10 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   }
 
   // Don't `hide()` the iframe, then FireFox acts as if it doesn't exist: FireFox receives
-  // no messages at all from it.
+  // no messages at all from it.  [.hdn_iframe]
   const commentsIframe = Bliss.create('iframe', {
     id: 'ed-embedded-comments',
-    name: 'edComments' + (iframeNr >= 2 ? '-' + iframeNr : ''),
+    name: 'edComments-' + iframeNr, // (iframeNr >= 2 ? '-' + iframeNr : ''),
     className: 'p_CmtsIfr ty_CmtsIfr',   // DEPRECATE old name p_CmtsIfr
     // A title attr, for better accessibility. See: https://www.w3.org/TR/WCAG20-TECHS/H64.html
     title: discussionTitle || "Comments",
@@ -461,6 +499,11 @@ function removeCommentsAndEditor() {
     editorWrapper.remove();
     editorWrapper = null;
   }
+  if (sessionIframe) {
+    sessionIframe.remove();
+    sessionIframe = null;
+    sessionIframeInited = false;
+  }
 }
 
 
@@ -557,7 +600,7 @@ function messageCommentsIframeToMessageMeToScrollTo(postNr) {
 
 
 function onMessage(event) {
-  if (!numCommentsIframes) return;
+  if (!sessionIframe) return;
 
   // The message is a "[eventName, eventData]" string because IE <= 9 doesn't support
   // sending objects. CLEAN_UP COULD send a real obj nowadays, because we don't support IE 9 any more.
@@ -584,6 +627,19 @@ function onMessage(event) {
 
   // COULD REFACTOR: Actually, child iframes can message each other directly;
   // need not send via the parent.
+
+  if (sessionIframe.contentWindow === event.source) {
+    // @ifdef DEBUG
+    if (eventName !== 'iframeInited')
+      throw Error(`Unexpected message from session iframe: ${eventName}  TyE4MREJ36`);
+    // @endif
+    sessionIframeInited = true;
+    loadFirstCommentsIframe();
+    return;
+  }
+
+  if (!numCommentsIframes)
+    return;
 
   const [iframe, iframeNr] = findIframeThatSent(event);
   const isFromCommentsIframe = iframeNr >= FirstCommentsIframeNr;

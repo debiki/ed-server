@@ -895,6 +895,12 @@ interface Origins {
 }
 
 
+interface EmbSessionStore {
+  me?: Myself;
+  embeddedOriginOrEmpty: St;
+}
+
+
 interface Store extends Origins, PartialEditorStoreState {
   // Need to use the same layout settings as the server, on the first
   // render, when reusing (hydrating) html from the server.
