@@ -78,6 +78,8 @@ function onMessage(event) {
       dieIf(!eds.isInEmbeddedCommentsIframe, 'TyE305RK3');
       const pubSiteId = eventData.pubSiteId;
       if (eds.pubSiteId === pubSiteId) {
+        const mainWin = debiki2.getMainWin();
+        mainWin.typs.weakSessionId = eventData.weakSessionId;
         typs.weakSessionId = eventData.weakSessionId;
         // This will send 'justLoggedIn' to the editor iframe, so it'll get updated too.
         ReactActions.loadMyself();

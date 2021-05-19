@@ -94,21 +94,25 @@ store.postsToUpdate = {};
 if (store.user && !store.me) store.me = store.user; // try to remove
 if (!store.me) {
   store.me = makeStranger(store);
-  // This is safe and cannot fail, still, try-catch for now, new code.
-  // DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
-  try {
-    const sessWin = getMainWin();
-    const sessStore: EmbSessionStore = sessWin.theStore;
-    if (_.isString(sessStore.me)) {  // [emb_ifr_shortcuts]
-      sessWin.typs.xsrfTokenIfNoCookies = typs.xsrfTokenIfNoCookies;
-      sessStore.me = store.me;
-    }
-  }
-  catch (ex) {
-    logW(`Multi iframe error? [TyEMANYIFR]`, ex)
-  }
 }
 store.user = store.me; // try to remove
+
+
+// This is safe and cannot fail, still, try-catch for now, new code.
+// DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
+try {
+  const sessWin = getMainWin();
+  if (!sessWin.typs.xsrfTokenIfNoCookies && typs.xsrfTokenIfNoCookies) {
+    sessWin.typs.xsrfTokenIfNoCookies = typs.xsrfTokenIfNoCookies;
+  }
+  const sessStore: EmbSessionStore = sessWin.theStore;
+  if (!_.isObject(sessStore.me) && store.me) {  // [emb_ifr_shortcuts]
+    sessStore.me = _.cloneDeep(store.me);
+  }
+}
+catch (ex) {
+  logW(`Multi iframe error? [TyEMANYIFR]`, ex)
+}
 
 
 // Auto pages are e.g. admin or user profile pages, html generated automatically when needed.
