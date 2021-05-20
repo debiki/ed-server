@@ -396,6 +396,7 @@ type Me = Myself
 interface Myself extends OwnPageNotfPrefs {   // RENAME to Me
   dbgSrc?: string;
   id?: UserId;
+  isStranger?: true;
   isGroup?: boolean; // currently always undefined (i.e. false)
   isLoggedIn?: boolean;
   isAdmin?: boolean;

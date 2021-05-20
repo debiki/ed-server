@@ -35,6 +35,7 @@ interface WindowWithTalkyardProps {
   edReloadCommentsAndEditor: () => void;
   talkyardRemoveCommentsAndEditor: () => void;
   talkyardReloadCommentsAndEditor: () => void;
+  talkyardLoadNewCommentIframes: () => Vo;
 }
 
 // Later: SSO and HMAC via https://pasteo.io? https://paseto.io/rfc/  [blog_comments_sso]
@@ -264,7 +265,7 @@ function loadFirstCommentsIframe() {
 
 
 
-function loadMoreCommentIframes() {
+function loadRemainingCommentIframes() {
   // These wants to access the first, "main", comments iframe.
   // So don't create them, until that one has been inited.
   for (let i = 1; i < commentsElems.length; ++i) {
@@ -278,7 +279,22 @@ function loadMoreCommentIframes() {
 
 
 
+function loadNewCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
+  const newCommentElems = document.querySelectorAll('.talkyard-comments:not(.ty_IfrCr)');
+  const numOld = commentsElems.length;
+  for (let i = 0; i < newCommentElems.length; ++i) {
+    const iframeNr = numOld + i + FirstCommentsIframeNr;
+    intCommentIframe(
+          newCommentElems[i], iframeNr, i > 1);
+  }
+}
+
+
+
 function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
+  const existingIframe = commentsElem.querySelector('.ty_CmtsIfr');
+  if (existingIframe)
+    return;
 
   var embeddingUrl = window.location.origin + window.location.pathname + window.location.search;
   var embeddingUrlParam = 'embeddingUrl=' + embeddingUrl;
@@ -362,6 +378,8 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   });
 
   Bliss.start(commentsIframe, commentsElem);
+
+  commentsElem.classList.add('ty_IfrCr');  // iframe created
 
   iframeElms[iframeNr] = commentsIframe;
   debugLog(`Inserted commentsIframes[${iframeNr}]`);
@@ -668,7 +686,7 @@ function onMessage(event) {
 
       if (iframeNr <= FirstCommentsIframeNr && iframesInited[0] && iframesInited[1]) {
         if (numCommentsIframes >= 2) {
-          loadMoreCommentIframes();
+          loadRemainingCommentIframes();
         }
       }
 
@@ -703,7 +721,7 @@ function onMessage(event) {
         // Noop.
       }
       else if (talkyardAuthnToken) {
-        sendToComments(
+        sendToMainIframe(
               JSON.stringify(['loginWithAuthnToken', talkyardAuthnToken]));
       }
       else if (oneTimeLoginSecret) {
@@ -1168,5 +1186,7 @@ windowWithTalkyardProps.edRemoveCommentsAndEditor = removeCommentsAndEditor;  //
 windowWithTalkyardProps.edReloadCommentsAndEditor = loadCommentsCreateEditor; // old name [2EBG05]
 windowWithTalkyardProps.talkyardRemoveCommentsAndEditor = removeCommentsAndEditor;
 windowWithTalkyardProps.talkyardReloadCommentsAndEditor = loadCommentsCreateEditor;
+windowWithTalkyardProps.talkyardLoadNewCommentIframes = loadNewCommentIframes;
+
 
 // vim: fdm=marker et ts=2 sw=2 fo=tcqwn list

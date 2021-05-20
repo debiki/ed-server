@@ -98,23 +98,6 @@ if (!store.me) {
 store.user = store.me; // try to remove
 
 
-// This is safe and cannot fail, still, try-catch for now, new code.
-// DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
-try {
-  const sessWin = getMainWin();
-  if (!sessWin.typs.xsrfTokenIfNoCookies && typs.xsrfTokenIfNoCookies) {
-    sessWin.typs.xsrfTokenIfNoCookies = typs.xsrfTokenIfNoCookies;
-  }
-  const sessStore: EmbSessionStore = sessWin.theStore;
-  if (!_.isObject(sessStore.me) && store.me) {  // [emb_ifr_shortcuts]
-    sessStore.me = _.cloneDeep(store.me);
-  }
-}
-catch (ex) {
-  logW(`Multi iframe error? [TyEMANYIFR]`, ex)
-}
-
-
 // Auto pages are e.g. admin or user profile pages, html generated automatically when needed.
 // No page id or user created data server side. Auto pages need this default empty stuff,
 // to avoid null errors.
@@ -517,8 +500,39 @@ ReactStore.activateVolatileData = function() {
   dieIf(volatileDataActivated, 'EsE4PFY03');
   volatileDataActivated = true;
   const data: VolatileDataFromServer = eds.volatileDataFromServer;
+
+  // If we're in a comments iframe, and we're logged in — there's
+  // a sesison and a user in the session-iframe.html — then, use that
+  // user. This makes it possible to dynamically add new blog comments
+  // iframes, and they'll be aware about already being logged in,
+  // even if the browser refuses to send any session cookie to the server.
+  let sessWin: MainWin;
+  try {
+    sessWin = getMainWin();
+    const sessStore: EmbSessionStore = sessWin.theStore;
+    if (_.isObject(sessStore.me) && data.me.isStranger) {  // [emb_ifr_shortcuts]
+      data.me = _.cloneDeep(sessStore.me);
+    }
+  }
+  catch (ex) {
+    logW(`Multi iframe error? [TyEMANYIFR02]`, ex)
+  }
+
   theStore_setOnlineUsers(data.numStrangersOnline, data.usersOnline);
   ReactStore.activateMyself(data.me);
+
+  // This is safe and cannot fail, still, try-catch for now, new code.
+  // DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
+  if (sessWin) try {
+    const sessStore: EmbSessionStore = sessWin.theStore;
+    if (!_.isObject(sessStore.me) && store.me) {  // [emb_ifr_shortcuts]
+      sessStore.me = _.cloneDeep(store.me);
+    }
+  }
+  catch (ex) {
+    logW(`Multi iframe error? [TyEMANYIFR03]`, ex)
+  }
+
   store.quickUpdate = false;
   this.emitChange();
 };
@@ -1812,6 +1826,7 @@ function watchbar_copyUnreadStatusFromTo(old: Watchbar, newWatchbar: Watchbar) {
 function makeStranger(store: Store): Myself {
   const stranger = {
     dbgSrc: '5BRCW27',
+    isStranger: true,
     trustLevel: TrustLevel.Stranger,
     threatLevel: ThreatLevel.HopefullySafe,
     permsOnPages: [],
