@@ -1800,7 +1800,11 @@ export const Editor = createFactory<any, EditorState>({
     const params: HideEditorAndPreviewParams = {
       anyDraft,
       keepDraft: ps.keepDraft,
-      editorsPageId: state.editorsPageId,
+      editorsPageId:
+          // If the page was just lazy-created (embedded comments), need to specify
+          // the correct id. [4HKW28]
+          eds.embeddedPageId ||
+              state.editorsPageId,
     };
 
     const postNrs: PostNr[] = state.replyToPostNrs;
@@ -1820,7 +1824,7 @@ export const Editor = createFactory<any, EditorState>({
 
     // Hide any preview post we created when opening the editor (TGLPRVW),
     // and reenable any Reply buttons.
-    ReactActions.hideEditorAndPreview(params);
+    ReactActions.hideEditorAndPreview(params, state.inWhichFrame);
 
     this.returnSpaceAtBottomForEditor();
 

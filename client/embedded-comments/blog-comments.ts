@@ -257,8 +257,6 @@ function loadFirstCommentsIframe() {
   iframesInited = new Array(numPlusOne);
   pendingIframeMessages = new Array(numPlusOne);
 
-  // If many, create an empty <iframe> for the main win?
-  createSessionFrame();
   intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numCommentsIframes > 1);
   initEditorIframe(numCommentsIframes > 1);
 }
@@ -278,7 +276,30 @@ function loadRemainingCommentIframes() {
 }
 
 
+/**
+ * Ex:
+ *   talkyardAddCommentsIframe({ appendInside: document.body, discussionId: 'abc123' });
+ */
+function addCommentsIframe(ps: { appendInside: HElm, discussionId: St }): HElm {
+  const wrapperDiv = Bliss.create('div', {
+    className: 'talkyard-comments',
+    'data-discussion-id': ps.discussionId,
+  });
 
+  loadingElms.push(undefined);
+  iframeElms.push(undefined);
+  iframesInited.push(undefined);
+  pendingIframeMessages.push(undefined);
+
+  Bliss.inside(wrapperDiv, ps.appendInside);
+  const commentsIframeNr = iframeElms.length - 1;
+  intCommentIframe(wrapperDiv, commentsIframeNr, commentsIframeNr >= 2);
+  return wrapperDiv;
+}
+
+
+
+/*
 function loadNewCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   const newCommentElems = document.querySelectorAll('.talkyard-comments:not(.ty_IfrCr)');
   const numOld = commentsElems.length;
@@ -287,7 +308,7 @@ function loadNewCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: 
     intCommentIframe(
           newCommentElems[i], iframeNr, i > 1);
   }
-}
+}  */
 
 
 
@@ -1186,7 +1207,8 @@ windowWithTalkyardProps.edRemoveCommentsAndEditor = removeCommentsAndEditor;  //
 windowWithTalkyardProps.edReloadCommentsAndEditor = loadCommentsCreateEditor; // old name [2EBG05]
 windowWithTalkyardProps.talkyardRemoveCommentsAndEditor = removeCommentsAndEditor;
 windowWithTalkyardProps.talkyardReloadCommentsAndEditor = loadCommentsCreateEditor;
-windowWithTalkyardProps.talkyardLoadNewCommentIframes = loadNewCommentIframes;
+windowWithTalkyardProps.talkyardAddCommentsIframe = addCommentsIframe;
+//windowWithTalkyardProps.talkyardLoadNewCommentIframes = loadNewCommentIframes;
 
 
 // vim: fdm=marker et ts=2 sw=2 fo=tcqwn list

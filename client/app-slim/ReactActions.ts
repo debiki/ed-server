@@ -1117,14 +1117,14 @@ export function scrollToPreview(ps: {
 }
 
 
-export function hideEditorAndPreview(ps: HideEditorAndPreviewParams) {
+export function hideEditorAndPreview(ps: HideEditorAndPreviewParams, inWhichFrame?) {
   // @ifdef DEBUG
   dieIf(ps.replyToNr && ps.editingPostNr, 'TyE4KTJW035M');
   dieIf(ps.replyToNr && !ps.anyPostType, 'TyE72SKJRW46');
   // @endif
 
   if (eds.isInEmbeddedEditor) {
-    sendToCommentsIframe(['hideEditorAndPreview', ps]);  // toWhichFrame
+    sendToCommentsIframe(['hideEditorAndPreview', ps], inWhichFrame);
     patchTheStore({ setEditorOpen: false });
     return;
   }
@@ -1138,7 +1138,7 @@ export function hideEditorAndPreview(ps: HideEditorAndPreviewParams) {
   const isChat = page && page_isChat(page.pageRole);
 
   // If' we've navigated to a different page, then, any preview is gone already.
-  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId;
+  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId; // hm updated alreayd if 1st reply, lazy page?
 
   // A bit dupl debug checks (49307558).
   // @ifdef DEBUG
@@ -1324,7 +1324,7 @@ export function insertChatMessage(text: string, draftToDelete: Draft | undefined
 export function handleReplyResult(patch: StorePatch, draftToDelete: Draft | undefined,
       onDone?: () => void, sendToWhichFrame?: MainWin) {
   if (eds.isInEmbeddedEditor) {
-    if (patch.newlyCreatedPageId) {
+    if (patch.newlyCreatedPageId) {  // always ??
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
       eds.embeddedPageId = patch.newlyCreatedPageId;
     }

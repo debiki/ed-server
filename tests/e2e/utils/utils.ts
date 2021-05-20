@@ -236,6 +236,7 @@ ${ htmlToPaste ? htmlToPaste : `
 <hr>
 <p>Discussion id '${discId}':</p>
 <div class="talkyard-comments" data-discussion-id="${discId}" style="">
+</div
 `
     }
 

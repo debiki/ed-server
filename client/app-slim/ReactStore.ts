@@ -510,8 +510,8 @@ ReactStore.activateVolatileData = function() {
   try {
     sessWin = getMainWin();
     const sessStore: EmbSessionStore = sessWin.theStore;
-    if (_.isObject(sessStore.me) && data.me.isStranger) {  // [emb_ifr_shortcuts]
-      data.me = _.cloneDeep(sessStore.me);
+    if (_.isObject(sessStore.me) && (!data.me || data.me.isStranger)) {
+      data.me = _.cloneDeep(sessStore.me);  // [emb_ifr_shortcuts]
     }
   }
   catch (ex) {
@@ -1537,7 +1537,7 @@ function patchTheStore(storePatch: StorePatch) {
     _.each(store.pagesById, (oldPage: Page) => {
       _.each(patchedPosts, (patchedPost: Post) => {
         _.each(oldPage.postsByNr, (oldPost: Post) => {
-          if (oldPost.uniqueId === patchedPost.uniqueId) {
+          if (oldPost.uniqueId === patchedPost.uniqueId) {  // oops old  = -1000101
             const movedToNewPage = oldPage.pageId !== patchedPageId;
             const movedOnThisPage = !movedToNewPage && oldPost.parentNr !== patchedPost.parentNr;
             if (movedOnThisPage) {
