@@ -72,7 +72,7 @@ export const actionTypes = {
 };
 
 
-export function loadMyself(afterwardsCallback?) {
+export function loadMyself(afterwardsCallback?: () => Vo) {
   // (Don't delete temp login cookies here, because this fn gets called if login is
   // detected in another tab — and perhaps yet another login has been started in that other
   // tab, and we don't want to break it by deleting cookies. Instead login temp cookies are

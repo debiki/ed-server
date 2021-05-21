@@ -510,8 +510,14 @@ ReactStore.activateVolatileData = function() {
   try {
     sessWin = getMainWin();
     const sessStore: EmbSessionStore = sessWin.theStore;
-    if (_.isObject(sessStore.me) && (!data.me || data.me.isStranger)) {
-      data.me = _.cloneDeep(sessStore.me);  // [emb_ifr_shortcuts]
+    if (_.isObject(sessStore.me)) {
+      if (!data.me || data.me.isStranger) {
+        data.me = _.cloneDeep(sessStore.me);  // [emb_ifr_shortcuts]
+      }
+      else {
+        data.me = me_merge(sessStore.me, data.me);  // [emb_ifr_shortcuts]
+        sessStore.me = data.me;
+      }
     }
   }
   catch (ex) {
@@ -1399,7 +1405,7 @@ function updateNotificationCounts(notf: Notification, add: boolean) {
 }
 
 
-function patchTheStore(storePatch: StorePatch) {
+function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly, instead of via Flux mess
   if (isDefined2(storePatch.setEditorOpen) && storePatch.setEditorOpen !== store.isEditorOpen) {
     store.isEditorOpen = storePatch.setEditorOpen;
     store.editorsPageId = storePatch.setEditorOpen && storePatch.editorsPageId;
@@ -1424,7 +1430,24 @@ function patchTheStore(storePatch: StorePatch) {
 
   if (storePatch.me) {
     // [redux] modifying the store in place, again.
-    store.me = <Myself> _.assign(store.me || {}, storePatch.me);
+    let patchedMe: Myself | U;
+    if (eds.isInIframe) {
+      try {
+        const sessWin = getMainWin();
+        const sessStore: EmbSessionStore = sessWin.theStore;
+        if (_.isObject(sessStore.me)) {
+          patchedMe = me_merge(sessStore.me, store.me || {} as Myself, storePatch.me);  // [emb_ifr_shortcuts]
+          sessStore.me = patchedMe;
+        }
+      }
+      catch (ex) {
+        logW(`Multi iframe error? [TyEMANYIFR04]`, ex)
+      }
+    }
+    if (!patchedMe) {
+      patchedMe = _.assign(store.me || {} as Myself, storePatch.me);
+    }
+    store.me = patchedMe;
   }
 
   if (storePatch.deleteDraft) {

@@ -1347,10 +1347,13 @@ export function savePageNotfPrefUpdStoreIfSelf(memberId: UserId, target: PageNot
     postData.lazyCreatePageInCatId = eds.lazyCreatePageInCatId;
   }
 
-  postJsonSuccess('/-/save-content-notf-pref', (response) => {
+  postJsonSuccess('/-/save-content-notf-pref', (response: { newlyCreatedPageId }) => {
+    let storePatch: StorePatch = {};
+
     if (response.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
       eds.embeddedPageId = response.newlyCreatedPageId;
+      storePatch.newlyCreatedPageId = response.newlyCreatedPageId;
     }
 
     // If one saved one's own prefs (rather than if one is staff, and changed someone
@@ -1362,20 +1365,25 @@ export function savePageNotfPrefUpdStoreIfSelf(memberId: UserId, target: PageNot
       if (!pageData && response.newlyCreatedPageId) {
         // Add page data for the new page, so it's there if we need to e.g. render a
         // notf pref button title (then, need to know our page notf level) [TyT305MHRTDP23].
-        // The id will remain EmptyPageId = '0', not newlyCreatedPageId, until page reload.
         pageData = makeNoPageData();
+        pageData.pageId = response.newlyCreatedPageId;
       }
 
       let newMe: Myself;
       if (pageData) {
-        newMe = me_copyWithNewPageData(me, { ...pageData, myPageNotfPref: notfPref })
+        newMe = me_copyWithNewPageData(me, { ...pageData, myPageNotfPref: notfPref });
       }
       else {
         const updPrefs = pageNotfPrefs_copyWithUpdatedPref(me.myCatsTagsSiteNotfPrefs, notfPref);
         newMe = { ...me, myCatsTagsSiteNotfPrefs: updPrefs };
       }
-      ReactActions.patchTheStore({ me: newMe });
+      storePatch.me = newMe;
     }
+
+    if (!_.isEmpty(storePatch)) {
+      ReactActions.patchTheStore(storePatch);
+    }
+
     if (onDone) {
       onDone();
     }
@@ -1396,9 +1404,27 @@ export function loadMyself(callback: (user: any) => void) {
     debugger;
   }
   // @endif
+
+  // Need to load data for the pages all iframes, not just the iframe we're in now.
+  // But not yet implemented server side.  [many_ifr_my_page_data]
+  // Therefore, BUG: If many comments iframes, will *look* as if changing notf
+  // level, has no effect. But in fact it works.
+  let pageIds = getPageId();
+  if (eds.isInEmbeddedCommentsIframe) {
+    try {
+      const mainWin = getMainWin();
+      if (mainWin.tydyn?.allIframePageIds) {
+        pageIds = mainWin.tydyn.allIframePageIds.join(',');
+      }
+    }
+    catch (ex) {
+      logW(`Error getting loadMyself() page id(s)`, ex);
+    }
+  }
   // SHOULD incl sort order & topic filter in the url params. [2KBLJ80]
-  get(`/-/load-my-page-data?pageId=${getPageId()}`, callback);
+  get(`/-/load-my-page-data?pageId=${pageIds}`, callback);
 }
+
 
 export function listDrafts(userId: UserId,
       onOk: (response: ListDraftsResponse) => void, onError: () => void) {

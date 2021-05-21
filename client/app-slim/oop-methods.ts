@@ -569,14 +569,37 @@ export function post_shallRenderAsHidden(post: Post): boolean {
 }
 
 
+
 // Me
 //----------------------------------
+
+
+export function me_merge(me1: Myself, me2: Partial<Myself>,
+        me3?: Partial<Myself>): Myself {
+  let me = me_mergeImpl(me1, me2);
+  if (me3) {
+    me = me_mergeImpl(me, me3);
+  }
+  return me;
+}
+
+
+function me_mergeImpl(me1: Partial<Myself>, me2: Partial<Myself>): Myself {
+  const me = { ...me1, ...me2 };
+  me.myDataByPageId = { ...me1.myDataByPageId, ...me2.myDataByPageId };
+  me.marksByPostId = { ...me1.marksByPostId, ...me2.marksByPostId };
+//export function pageNotfPrefs_copyWithUpdatedPref(
+ //    prefs: PageNotfPref[], newNotfPref: PageNotfPref): PageNotfPref[] {
+  return me as Myself;
+}
+
 
 export function me_isUser(me: Myself): boolean {
   return (!isGuest(me) && !me.isGroup &&
       // Don't need both these? Oh well.
       me.isAuthenticated && me_isAuthenticated(me));
 }
+
 
 export function me_hasRead(me: Myself, post: Post) {
   // If not logged in, we have no idea.
