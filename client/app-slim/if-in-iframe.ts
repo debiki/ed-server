@@ -157,6 +157,9 @@ function onMessage(event) {
     case 'scrollToPreview':
       ReactActions.scrollToPreview(eventData);
       break;
+    case 'hideEditor':
+      ReactActions.hideEditor();
+      break;
     case 'hideEditorAndPreview':
       // This is sent from the embedded editor to an embedded comments page.
       ReactActions.hideEditorAndPreview(eventData);

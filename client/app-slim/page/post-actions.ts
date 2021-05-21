@@ -650,8 +650,8 @@ function toggleVote(store: Store, post: Post, voteType: string, toggleOn: boolea
     postNrsRead: postNrsRead
   };
 
-  debiki2.Server.saveVote(data, function(updatedPost) {
-    ReactActions.vote(updatedPost, action, voteType);
+  debiki2.Server.saveVote(data, function(storePatch: StorePatch) {
+    ReactActions.vote(storePatch, action, voteType, post.nr);
   });
 }
 

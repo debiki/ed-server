@@ -1680,7 +1680,7 @@ export function saveVote(data: {
     vote: string,
     action: 'DeleteVote' | 'CreateVote',
     postNrsRead: PostNr[]
-}, onDone: (updatedPost) => void) {
+}, onDone: (storePatch: StorePatch) => Vo) {
   // Specify altPageId and embeddingUrl, so any embedded page can be created lazily. [4AMJX7]
   // @ifdef DEBUG
   dieIf(data.pageId && data.pageId !== EmptyPageId && data.pageId !== getPageId(), 'TyE2ABKSY7');
@@ -1692,12 +1692,12 @@ export function saveVote(data: {
     embeddingUrl: eds.embeddingUrl || undefined,
     lazyCreatePageInCatId: eds.lazyCreatePageInCatId,
   }
-  postJsonSuccess('/-/vote', (response) => {
-    if (response.newlyCreatedPageId) {
+  postJsonSuccess('/-/vote', (storePatch: StorePatch) => {
+    if (storePatch.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
-      eds.embeddedPageId = response.newlyCreatedPageId;
+      eds.embeddedPageId = storePatch.newlyCreatedPageId;
     }
-    onDone(response.updatedPost);
+    onDone(storePatch);
   }, dataWithEmbeddingUrl);
 }
 

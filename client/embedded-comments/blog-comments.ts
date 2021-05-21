@@ -35,7 +35,8 @@ interface WindowWithTalkyardProps {
   edReloadCommentsAndEditor: () => void;
   talkyardRemoveCommentsAndEditor: () => void;
   talkyardReloadCommentsAndEditor: () => void;
-  talkyardLoadNewCommentIframes: () => Vo;
+  talkyardAddCommentsIframe: (ps: { appendInside: HElm, discussionId: St }) => HElm;
+  talkyardForgetRemovedCommentIframes: () => Vo;
 }
 
 // Later: SSO and HMAC via https://pasteo.io? https://paseto.io/rfc/  [blog_comments_sso]
@@ -146,6 +147,28 @@ let loadingElms: (HElm | U)[] | U;
 let iframeElms: (HTMLIFrameElement | U)[] | U;
 let iframesInited: (Bo | U)[] | U;
 let pendingIframeMessages: Ay[][] | U;
+
+
+/*
+// (MutationObserver won't work in Opera Mini from 2015, but that's a while ago.)
+const mutationObserver = new MutationObserver(function (mutations, observer) {
+  for (const mutation of mutations) {
+    console.log(`MUTATION: ${mutation.type} tgt: ${mutation.target}`);
+    if (mutation.type !== 'childList')
+      continue;
+    
+    console.log(`mutation.removedNodes.length: ${mutation.removedNodes.length}`);
+    console.log(`mutation.removedNodes: ${mutation.removedNodes}`);
+  }
+});
+
+// We don't know what elems the embedding page (blog post) might remove that
+// makes comment iframes disappear. So observe everything. (Performance impact
+// should be negligible, compared to the actual mutations.)
+mutationObserver.observe(document.body, { subtree: true, childList: true });
+*/
+
+
 
 var editorIframe;
 var editorWrapper;
@@ -264,6 +287,9 @@ function loadFirstCommentsIframe() {
 
 
 function loadRemainingCommentIframes() {
+  if (!commentsElems)
+    return;
+
   // These wants to access the first, "main", comments iframe.
   // So don't create them, until that one has been inited.
   for (let i = 1; i < commentsElems.length; ++i) {
@@ -292,11 +318,26 @@ function addCommentsIframe(ps: { appendInside: HElm, discussionId: St }): HElm {
   pendingIframeMessages.push(undefined);
 
   Bliss.inside(wrapperDiv, ps.appendInside);
+  numCommentsIframes = iframeElms.length - FirstCommentsIframeNr;
   const commentsIframeNr = iframeElms.length - 1;
-  intCommentIframe(wrapperDiv, commentsIframeNr, commentsIframeNr >= 2);
+  intCommentIframe(wrapperDiv, commentsIframeNr, numCommentsIframes >= 2);
   return wrapperDiv;
 }
 
+
+
+function forgetRemovedCommentIframes() {
+  for (let i = iframeElms.length - 1; i >= 0; --i) {
+    const iframe = iframeElms[i];
+    if (!iframe.isConnected)  {
+      iframeElms.splice(i, 1);
+      loadingElms.splice(i, 1);
+      iframesInited.splice(i, 1);
+      pendingIframeMessages.splice(i, 1);
+      numCommentsIframes = iframeElms.length - FirstCommentsIframeNr;
+    }
+  }
+}
 
 
 /*
@@ -677,10 +718,11 @@ function onMessage(event) {
     return;
   }
 
-  if (!numCommentsIframes)
+  const anyFrameAndNr = findIframeThatSent(event);
+  if (!anyFrameAndNr)
     return;
 
-  const [iframe, iframeNr] = findIframeThatSent(event);
+  const [iframe, iframeNr] = anyFrameAndNr;
   const isFromCommentsIframe = iframeNr >= FirstCommentsIframeNr;
 
   let assertIsFromEditorToComments = function() {};
@@ -706,9 +748,7 @@ function onMessage(event) {
       iframesInited[iframeNr] = true;
 
       if (iframeNr <= FirstCommentsIframeNr && iframesInited[0] && iframesInited[1]) {
-        if (numCommentsIframes >= 2) {
-          loadRemainingCommentIframes();
-        }
+        loadRemainingCommentIframes();
       }
 
       // If something prevented the editor from loading, let's continue anyway,
@@ -879,7 +919,8 @@ function onMessage(event) {
       assertIsFromEditorToComments();
       sendToComments(event.data);
       break;
-    case 'hideEditorAndPreview':
+    case 'hideEditor':
+    case 'hideEditorAndPreview': // CLEAN_UP REMOVE_AFTER 2021-10-01 this line only.
       assertIsFromEditorToComments();
       showEditor(false);
       sendToComments(event.data);
@@ -924,8 +965,8 @@ function setIframeSize(iframe, dimensions) {
 
 
 
-/// Returns: [iframe, index]
-function findIframeThatSent(event): [HTMLIFrameElement, Nr] {  // [find_evt_ifrm]
+/// Returns: [iframe, index] or undefined.
+function findIframeThatSent(event): [HTMLIFrameElement, Nr] | U {  // [find_evt_ifrm]
   // See http://stackoverflow.com/a/18267415/694469
   for (let i = 0; i < iframeElms.length; ++i) {
     const comIfr = iframeElms[i];
@@ -945,8 +986,7 @@ function sendToOtherIframes(message, skipIframeNr: Nr) {
       continue;
     }
     const commentsIframe = iframeElms[i];
-    sendToOneIframe(
-          commentsIframe, i, message);
+    sendToOneIframe(commentsIframe, message);
   }
 }
 
@@ -958,25 +998,24 @@ function sendToComments(message) {
 
 
 function sendToEditor(message) {
-  sendToOneIframe(
-        editorIframe, EditorIframeNr, message);
+  sendToOneIframe(editorIframe, message);
 }
 
 
 
 function sendToMainIframe(message: Ay) {
-  sendToOneIframe(iframeElms[FirstCommentsIframeNr], FirstCommentsIframeNr, message);
+  sendToOneIframe(iframeElms[FirstCommentsIframeNr], message);
 }
 
 
 
-function sendToOneIframe(iframe, iframeNr: Nr, message: any | null) {
+function sendToOneIframe(iframe, message: any | null, retryNr: Nr = 0) {
   //initedArr: boolean[], pendingMessages,
   // Dupl code (6029084583).
 
-  const iframeNow = iframeElms[iframeNr];
-  if (iframeNow !== iframe) {
-    // Recreated, skip message.
+  const iframeNr: Nr = iframeElms.indexOf(iframe);
+  if (iframeNr === -1) {
+    // Gone, skip message.
     return;
   }
 
@@ -998,8 +1037,22 @@ function sendToOneIframe(iframe, iframeNr: Nr, message: any | null) {
 
   if (!iframeInited) {
     setTimeout(function() {
-      sendToOneIframe(iframe, iframeNr, null);
+      // Maybe the iframe is gone, was removed before it got inited?
+      // If so, remove it from our iframes list — then, indexOf() above, won't
+      // find it so we'd return and skip the message.
+      if ((retryNr % 5) === 1) {
+        forgetRemovedCommentIframes();
+      }
+      sendToOneIframe(iframe, null, retryNr + 1);
     }, 500);
+    return;
+  }
+
+  // Iframe inited, but contents gone? That'd mean it got removed by javascript.
+  if (!iframe.contentWindow) {
+    // If many iframes gone, we'd call forgetRemovedCommentIframes()
+    // unnecessarily many times, that's ok.
+    setTimeout(forgetRemovedCommentIframes, 1);
     return;
   }
 
@@ -1208,6 +1261,7 @@ windowWithTalkyardProps.edReloadCommentsAndEditor = loadCommentsCreateEditor; //
 windowWithTalkyardProps.talkyardRemoveCommentsAndEditor = removeCommentsAndEditor;
 windowWithTalkyardProps.talkyardReloadCommentsAndEditor = loadCommentsCreateEditor;
 windowWithTalkyardProps.talkyardAddCommentsIframe = addCommentsIframe;
+windowWithTalkyardProps.talkyardForgetRemovedCommentIframes = forgetRemovedCommentIframes;
 //windowWithTalkyardProps.talkyardLoadNewCommentIframes = loadNewCommentIframes;
 
 

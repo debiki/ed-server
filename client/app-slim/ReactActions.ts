@@ -373,12 +373,14 @@ export function changePostType(post: Post, newType: PostType, onDone: () => void
 }
 
 
-export function vote(post, doWhat: string, voteType: string) {
+export function vote(storePatch: StorePatch, doWhat: 'DeleteVote' | 'CreateVote',
+        voteType: St, postNr: PostNr) {
   ReactDispatcher.handleViewAction({
+    storePatch,
     actionType: actionTypes.VoteOnPost,
-    post: post,
-    doWhat: doWhat,
-    voteType: voteType
+    doWhat,
+    voteType,
+    postNr,
   });
 }
 
@@ -1117,7 +1119,12 @@ export function scrollToPreview(ps: {
 }
 
 
-export function hideEditorAndPreview(ps: HideEditorAndPreviewParams, inWhichFrame?) {
+export function hideEditor() {
+  patchTheStore({ setEditorOpen: false });
+}
+
+
+export function hideEditorAndPreview(ps?: HideEditorAndPreviewParams, inWhichFrame?) {
   // @ifdef DEBUG
   dieIf(ps.replyToNr && ps.editingPostNr, 'TyE4KTJW035M');
   dieIf(ps.replyToNr && !ps.anyPostType, 'TyE72SKJRW46');
@@ -1125,6 +1132,7 @@ export function hideEditorAndPreview(ps: HideEditorAndPreviewParams, inWhichFram
 
   if (eds.isInEmbeddedEditor) {
     sendToCommentsIframe(['hideEditorAndPreview', ps], inWhichFrame);
+    sendToParent(['hideEditor']);
     patchTheStore({ setEditorOpen: false });
     return;
   }
@@ -1530,6 +1538,11 @@ function sendToCommentsIframe(message, toWhichFrame?) {
 }
 
 
+function sendToParent(message, toEditor?: Bo, toWhichFrame?: Window) {
+  sendToIframesImpl(message, false, parent);
+}
+
+
 function sendToIframesImpl(message, toEditor?: Bo, toWhichFrame?: Window) {
   // Send the message to any embedding page; it'll forward it to the appropriate iframe.
   // But only if we're in an iframe — otherwise, in Safari, there's an error. Not in
@@ -1540,7 +1553,8 @@ function sendToIframesImpl(message, toEditor?: Bo, toWhichFrame?: Window) {
       const win = sendDirectly ? toWhichFrame || win_getEditorWin() : window.parent;
       // (The parent win is the embedding page, e.g. a blog post page,
       // with origin eds.embeddingOrigin.)
-      const targetOrigin = sendDirectly ? location.origin : eds.embeddingOrigin;
+      const targetOrigin = sendDirectly && toWhichFrame !== parent ?
+              location.origin : eds.embeddingOrigin;
       win.postMessage(JSON.stringify(message), targetOrigin);
     }
     catch (ex) {

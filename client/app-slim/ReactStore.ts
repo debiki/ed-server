@@ -916,14 +916,14 @@ function updatePost(post: Post, pageId: PageId, isCollapsing?: boolean) {
 
 
 function voteOnPost(action) {
-  const post: Post = action.post;
+  const postNr: PostNr = action.postNr;
 
   const me: Myself = store.me;
   const myPageData: MyPageData = me.myCurrentPageData;
-  let votes = myPageData.votes[post.nr];
+  let votes = myPageData.votes[postNr];
   if (!votes) {
     votes = [];
-    myPageData.votes[post.nr] = votes;
+    myPageData.votes[postNr] = votes;
   }
 
   if (action.doWhat === 'CreateVote') {
@@ -933,7 +933,7 @@ function voteOnPost(action) {
     _.remove(votes, (voteType) => voteType === action.voteType);
   }
 
-  updatePost(post, store.currentPageId);
+  patchTheStore(action.storePatch);
 }
 
 
