@@ -507,7 +507,7 @@ ReactStore.activateVolatileData = function() {
   // iframes, and they'll be aware about already being logged in,
   // even if the browser refuses to send any session cookie to the server.
   let sessWin: MainWin;
-  try {
+  if (eds.isInIframe) try {
     sessWin = getMainWin();
     const sessStore: EmbSessionStore = sessWin.theStore;
     if (_.isObject(sessStore.me)) {
@@ -1537,6 +1537,8 @@ function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly
     const origPost = currentPage.postsByNr[BodyNr];
     origPost.uniqueId = storePatch.newlyCreatedOrigPostId;
 
+    // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
+    eds.embeddedPageId = storePatch.newlyCreatedPageId;
     // Later: Add this new page to the watchbar? Currently not needed, because pages created
     // lazily only for embedded comments, and then there's no watchbar.
   }

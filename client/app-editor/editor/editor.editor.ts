@@ -1856,6 +1856,7 @@ export const Editor = createFactory<any, EditorState>({
       guidelines: null,
       backdropOpacity: 0,
     });
+    eds.embeddedPageId = EmptyPageId;
   },
 
   callOnDoneCallback: function(saved: boolean) {

@@ -172,13 +172,14 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
   }
 
 
-  def showEmbeddedEditor(embeddingUrl: String, discussionId: Option[AltPageId],
+  def showEmbeddedEditor(embeddingUrl: St, discussionId: Option[AltPageId],
           edPageId: Option[PageId], category: Option[Ref]): Action[Unit] =
         AsyncGetActionMaybeSkipCookies(avoidCookies = true) { request =>
     import request.{dao, requester}
 
-    val anyRealPageId = getAnyRealPageId(
+    val anyRealPageId = None /*getAnyRealPageId(
           edPageId, discussionId, embeddingUrl, categoryRef = category, request.dao)
+          */
 
     val lazyCreatePageInCatId =
           if (anyRealPageId.isDefined) {
@@ -208,6 +209,7 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
         security.throwIndistinguishableNotFound(debugCode)
     }
 
+    BUG // harmless: Use the request origin instead of an URL param, for embeddingUrl?
     ViewPageController.addVolatileJsonAndPreventClickjacking2(htmlStr,
         unapprovedPostAuthorIds = Set.empty, request, embeddingUrl = Some(embeddingUrl))
   }

@@ -25,9 +25,11 @@
 export function startIframeMessages() {
   addEventListener('message', onMessage, false);
 
-  if (eds.embeddedPageId) {
+  if (!isNoPage(eds.embeddedPageId)) {
     const sessWin = getMainWin();
-    sessWin.tydyn.allIframePageIds.push(eds.embeddedPageId);
+    if (sessWin.tydyn) {
+      sessWin.tydyn.allIframePageIds.push(eds.embeddedPageId);
+    }
   }
 
   window.parent.postMessage(

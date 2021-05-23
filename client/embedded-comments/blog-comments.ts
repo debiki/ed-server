@@ -31,6 +31,7 @@ interface WindowWithTalkyardProps {
   talkyardLogLevel: number | undefined;
   talkyardDebug: boolean | number | undefined; // deprecated 2020-06-16
   talkyardAuthnToken: St | Ay | U;
+  talkyardManyCommentIframes: Bo | U;
   edRemoveCommentsAndEditor: () => void;
   edReloadCommentsAndEditor: () => void;
   talkyardRemoveCommentsAndEditor: () => void;
@@ -142,11 +143,12 @@ let numCommentsIframes = 0;
 
 let sessionIframeInited: Bo | U;
 let sessionIframe: HTMLIFrameElement | U | Nl;
+
 let commentsElems: HTMLCollectionOf<Element> | U | Nl;
-let loadingElms: (HElm | U)[] | U;
-let iframeElms: (HTMLIFrameElement | U)[] | U;
-let iframesInited: (Bo | U)[] | U;
-let pendingIframeMessages: Ay[][] | U;
+let loadingElms: HElm[] = [];
+let iframeElms: HTMLIFrameElement[] = [];
+let iframesInited: (Bo | U)[] = [];
+let pendingIframeMessages: Ay[][] = [];
 
 
 /*
@@ -224,6 +226,8 @@ addEventListener('message', onMessage, false);
 
 
 function loadCommentsCreateEditor() {
+  findOneTimeLoginSecret();
+  findCommentToScrollTo();
   createSessionFrame();
 }
 
@@ -233,6 +237,7 @@ function createSessionFrame() {
   if (sessionIframe)
     return;
 
+  debugLog("createSessionFrame()");
   sessionIframe = Bliss.create('iframe', {
     id: 'talkyard-session',
     name: 'edComments',
@@ -259,7 +264,7 @@ function createSessionFrame() {
 
 
 function loadFirstCommentsIframe() {
-  debugLog("loadCommentsCreateEditor()");
+  debugLog("loadFirstCommentsIframe()");
   // Create <iframe>s for embedded comments and an embedded editor.
   // Show a "Loading comments..." message until comments loaded.
   // For now, choose the first .talkyard-comments only, because
@@ -274,19 +279,19 @@ function loadFirstCommentsIframe() {
   numCommentsIframes = commentsElems.length;
   debugLog(`Found ${numCommentsIframes} Ty comment elems`);
 
-  const numPlusOne = numCommentsIframes + 1;
-  loadingElms = new Array(numPlusOne);
-  iframeElms = new Array(numPlusOne);
-  iframesInited = new Array(numPlusOne);
-  pendingIframeMessages = new Array(numPlusOne);
+  //const numPlusOne = numCommentsIframes + 1;
+  //loadingElms = new Array(numPlusOne);
+  //iframeElms = new Array(numPlusOne);
+  //iframesInited = new Array(numPlusOne);
+  //pendingIframeMessages = new Array(numPlusOne);
 
   intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numCommentsIframes > 1);
-  initEditorIframe(numCommentsIframes > 1);
 }
 
 
 
 function loadRemainingCommentIframes() {
+  debugLog("loadRemainingCommentIframes()");
   if (!commentsElems)
     return;
 
@@ -307,6 +312,9 @@ function loadRemainingCommentIframes() {
  *   talkyardAddCommentsIframe({ appendInside: document.body, discussionId: 'abc123' });
  */
 function addCommentsIframe(ps: { appendInside: HElm, discussionId: St }): HElm {
+  if (!windowWithTalkyardProps.talkyardManyCommentIframes)
+    throw Error(`Set  talkyardManyCommentIframes = true  to allow many comments iframes`);
+
   const wrapperDiv = Bliss.create('div', {
     className: 'talkyard-comments',
     'data-discussion-id': ps.discussionId,
@@ -358,6 +366,8 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   if (existingIframe)
     return;
 
+  debugLog(`intCommentIframe(..., iframeNr = ${iframeNr}, ...)`);
+
   var embeddingUrl = window.location.origin + window.location.pathname + window.location.search;
   var embeddingUrlParam = 'embeddingUrl=' + embeddingUrl;
 
@@ -382,6 +392,19 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
     throw Error(errorMessage);
   }
   var discIdParam = discussionId ? `discussionId=${discussionId}&` : '';
+
+  if (windowWithTalkyardProps.talkyardManyCommentIframes && !discussionId) {
+    // Without a discussion id, how could we know which (if any) of the
+    // iframe discussion should be associated with just the URL or URL path?
+    // Or if there's a discussion with no id, associated with the URL,
+    // and then a 2nd discussion iframe is added, with an id
+    // — the Ty server won't know if this is supposed to be a separate discussion,
+    // or if the blog admin just wants to add the id, to the already existing discussion.
+    const errMsg =
+          `iframe nr ${iframeNr}: Attribute 'data-discussion-id=...' missing — ` +
+          `it's required if many comment iframes allowed [TyEMANYIFRID]`;
+    throw Error(errMsg);
+  }
 
   // To place the lazy-created embedded discussion pages in a specific
   // category. E.g.:  data-category="extid:some_category"
@@ -481,7 +504,9 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
 
 
-function initEditorIframe(manyCommentsIframes: Bo) {
+function createEditorIframe() {
+  debugLog(`createEditorIframe()`);
+
   editorWrapper = Bliss.create('div', {
     id: 'ed-editor-wrapper',
     className: 'p_EdrIfrW',
@@ -511,7 +536,10 @@ function initEditorIframe(manyCommentsIframes: Bo) {
   Bliss.inside(editorWrapper, document.body);
   debugLog("inserted editorWrapper");
 
-  var editorIframeUrl = serverOrigin + '/-/embedded-editor?';
+  // The server needs the embedding URL, to know if it should
+  let editorIframeUrl =
+        `${serverOrigin}/-/embedded-editor?embeddingUrl=${location.origin}`;
+  /*  ${allUrlParams}`; //
   if (manyCommentsIframes) {
     // Add just log level?
     // For now, so works as before, if just 1 comments iframe.
@@ -522,6 +550,7 @@ function initEditorIframe(manyCommentsIframes: Bo) {
     // Later: Could incl just log level here too, but for now (May 2021) too untested.
     editorIframeUrl += allUrlParams;
   }
+  */
 
   if (loadWeinre) {
     editorIframeUrl += location.hash;
@@ -549,8 +578,6 @@ function initEditorIframe(manyCommentsIframes: Bo) {
   Bliss.inside(editorIframe, editorWrapper);
   debugLog("inserted editorIframe");
 
-  findOneTimeLoginSecret();
-  findCommentToScrollTo();
   makeEditorResizable();
 }
 
@@ -652,7 +679,7 @@ function messageCommentsIframeNewWinTopSize() {
 }
 
 
-function calcSizes(commentsIframe: HTMLIFrameElement, iframeNr: Nr): St {
+function calcSizes(commentsIframe: HTMLIFrameElement): St {
   var rect = commentsIframe.getBoundingClientRect();
   // We're interested in the height part of the viewport that is used for the iframe.
 
@@ -714,7 +741,7 @@ function onMessage(event) {
       throw Error(`Unexpected message from session iframe: ${eventName}  TyE4MREJ36`);
     // @endif
     sessionIframeInited = true;
-    loadFirstCommentsIframe();
+    createEditorIframe();
     return;
   }
 
@@ -724,6 +751,7 @@ function onMessage(event) {
 
   const [iframe, iframeNr] = anyFrameAndNr;
   const isFromCommentsIframe = iframeNr >= FirstCommentsIframeNr;
+  const isFromEditorIframe = iframeNr === EditorIframeNr;
 
   let assertIsFromEditorToComments = function() {};
   let assertIsFromCommentsToEditor = function() {};
@@ -747,7 +775,12 @@ function onMessage(event) {
       debugLog(`Iframe nr ${iframeNr} inited`);
       iframesInited[iframeNr] = true;
 
-      if (iframeNr <= FirstCommentsIframeNr && iframesInited[0] && iframesInited[1]) {
+      if (isFromEditorIframe) {
+        loadFirstCommentsIframe();
+        return;
+      }
+
+      if (iframeNr === FirstCommentsIframeNr) {
         loadRemainingCommentIframes();
       }
 

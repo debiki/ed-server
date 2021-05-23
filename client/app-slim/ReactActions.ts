@@ -139,6 +139,9 @@ export function logoutClientSideOnly(skipSend?: 'SkipSend') {
 
     // Probaby not needed, since reload() below, but anyway:
     patchTheStore({ setEditorOpen: false });
+    const sessWin: MainWin = getMainWin();
+    delete sessWin.typs.weakSessionId;
+    sessWin.theStore.me = 'TyMSGDOUT' as any;
   }
 
   // Disconnect WebSocket so we won't receive data, for this user, after we've
@@ -1332,8 +1335,9 @@ export function insertChatMessage(text: string, draftToDelete: Draft | undefined
 export function handleReplyResult(patch: StorePatch, draftToDelete: Draft | undefined,
       onDone?: () => void, sendToWhichFrame?: MainWin) {
   if (eds.isInEmbeddedEditor) {
-    if (patch.newlyCreatedPageId) {  // always ??
+    if (patch.newlyCreatedPageId) {
       // Update this, so subsequent server requests, will use the correct page id. [4HKW28]
+      // (Also done in patchTheStore().)
       eds.embeddedPageId = patch.newlyCreatedPageId;
     }
     // Send a message to the embedding page, which will forward it to

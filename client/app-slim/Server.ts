@@ -1413,7 +1413,7 @@ export function loadMyself(callback: (user: any) => void) {
   if (eds.isInEmbeddedCommentsIframe) {
     try {
       const mainWin = getMainWin();
-      if (mainWin.tydyn?.allIframePageIds) {
+      if (mainWin.tydyn) {
         pageIds = mainWin.tydyn.allIframePageIds.join(',');
       }
     }
