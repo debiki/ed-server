@@ -906,6 +906,5 @@ object JsX {
           isModerator = (jsObj \ "isModerator").asOpt[Boolean].getOrElse(false))
   }
 
-
 }
 

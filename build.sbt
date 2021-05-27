@@ -59,6 +59,16 @@ val appDependencies = Seq(
   "com.mohiva" %% "play-silhouette" % "7.0.0",
   "com.mohiva" %% "play-silhouette-crypto-jca" % "7.0.0",
 
+
+  Dependencies.Libs.jpasetoApi,
+  Dependencies.Libs.jpasetoImpl,
+  Dependencies.Libs.jpasetoGson,
+  //Dependencies.Libs.jpasetoJackson,
+  //Dependencies.Libs.jpasetoBouncyCastle,
+  //Dependencies.Libs.bouncyCastle,
+  Dependencies.Libs.jpasetoSodium,
+  //Dependencies.Libs.edsaCryptoAlg,
+
   // PostgreSQL JDBC client driver
   // see: https://mvnrepository.com/artifact/org.postgresql/postgresql/
   Dependencies.Libs.postgresqlJbcdClient,

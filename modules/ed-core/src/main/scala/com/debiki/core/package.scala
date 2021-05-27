@@ -99,6 +99,9 @@ package object core {
   def isDevOrTest: Bo = Prelude.isDevOrTest
   def isProd: Bo = Prelude.isProd
 
+  type SignOnId = St   // [Scala_3] opaque type
+
+  type ParsedEmail = St   // [Scala_3] opaque type
 
   type ActionId = Int
 
@@ -1309,7 +1312,7 @@ package object core {
 
 
   implicit class RichBoolean(underlying: Boolean) {
-    def toZeroOne: RoleId = if (underlying) 1 else 0
+    def toZeroOne: i32 = if (underlying) 1 else 0
   }
 
 

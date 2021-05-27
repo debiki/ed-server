@@ -31,6 +31,9 @@ import play.api.mvc._
 import scala.util.Try
 import debiki.dao.RemoteRedisClientError
 import talkyard.server.JsX
+import talkyard.server.parser.TyPaseto
+import dev.paseto.{jpaseto => pas}
+import dev.paseto.jpaseto.{Paseto => pas_Paseto}
 
 
 class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContext)
@@ -177,12 +180,10 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
 
 
   def apiV0_upsertUserAndLogin: Action[JsValue] =
-        PostJsonAction(RateLimits.Login,
-          isLogin = true,
-          maxBytes = 1000) {
-          request: JsonPostRequest =>
+        PostJsonAction(RateLimits.Login, isLogin = true, maxBytes = 1000) {
+          req: JsonPostRequest =>
 
-    import request.siteId
+    import req.{siteId, siteSettings}
     import debiki.JsonUtils._
 
     throwForbiddenIf(globals.isProd, "TyE403MRD67", "Not yet tested enough")
@@ -190,40 +191,49 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
     val anyUserJsObj: Opt[JsObject] = if (globals.isProd) None else {
       // Later: "user" field, if prod — then would need an API secret.
       // But maybe everyone can just use /-/v0/upsert-user instead.
-      parseOptJsObject(request.body, "userDevTest")
+      parseOptJsObject(req.body, "userDevTest")
     }
 
-    val anyAuthnToken = parseOptSt(request.body, "userInAuthnToken")
+    val anyAuthnToken = parseOptSt(req.body, "userInAuthnToken")
 
     throwBadReqIf(anyUserJsObj.isEmpty && anyAuthnToken.isEmpty,
       "TyE0SSOTKN", "No 'user' or 'userInAuthnToken' field")
     throwBadReqIf(anyUserJsObj.isDefined && anyAuthnToken.isDefined,
       "TyE0SSOTKN", "Got both 'userDevTest' and 'userInAuthnToken'")
 
-    val userJsObj = anyUserJsObj getOrElse {
-      ???  // decrypt and check signature of  anyAuthnToken
-      // Remove "paseto:" prefix
-      // https://github.com/paseto-toolkit/jpaseto
-      // ( https://paseto.io/rfc/ )
+    val symmetricSecret: St = siteSettings.ssoPasetoV2LocalSecret
+
+    val extUserFromJson: Opt[ExternalUser] = anyUserJsObj map { userJsObj =>
+      val soId = parseSt(userJsObj, "soId")
+      JsX.apiV0_parseExternalUser(
+            userJsObj, ssoId = soId, errSuffix = "TyEBADEXTUSR07")
     }
 
-    // Compare with   /-/v0/upsert-user-generate-login-secret
-    // — but here we use PASETO token standard fields:
-    // See 6.1.  Registered Claims  at  https://paseto.io/rfc/.
-    val ssoId = parseSt(userJsObj, "sub")
-    val expiresAt8601DateTimeSt = parseSt(userJsObj, "exp")
-    val issuedAt8601DateTimeSt = parseSt(userJsObj, "iat")
+    val extUserFromToken: Opt[ExternalUser] = anyAuthnToken map { prefixAndToken: St =>
+      val token: pas_Paseto = talkyard.server.security.PasetoSec.decodePasetoV2LocalToken(
+            prefixAndToken, symmetricSecret = symmetricSecret)
 
-    val extUser = JsX.apiV0_parseExternalUser(
-          userJsObj, ssoId = ssoId, errSuffix = "TyEBADSSOTOKENJSON")
+      if (token.getClaims.getExpiration ne null) {
+        // Fine. the lib has checked the expiration time already.
+      }
+      else {
+        //throwBadReq("TyENOCLAIMS052", "Paseto token has no expiration, 'exp', claim")
+      }
 
-    SECURITY; SHOULD // check expires at, plus, must not be > 10 min in the future?
-    SECURITY; COULD  // remember issued-at, per user, and require that
-    // // it's > the highest seen issued at — that'd prevent reply attacks,
-    // also within the expiration window.
+      SECURITY; COULD  // remember issued-at, per user, and require that
+      // it's > the highest seen issued at — that'd prevent reply attacks,
+      // also within the expiration window.
+
+      TyPaseto.apiV0_parseExternalUser(token) getOrIfBad { problem =>
+        throwBadReq("TyEPARSECLMS", s"Error parsing Paseto token claims: $problem")
+      }
+    }
+
+   val extUser: ExternalUser =
+         extUserFromJson.orElse(extUserFromToken) getOrDie "TyE5033MRS"
 
     val (user, _) =
-          upsertUser(extUser, request, mayOnlyInsertNotUpdate = true)
+          upsertUser(extUser, req, mayOnlyInsertNotUpdate = true)
 
     val (sid, _, _) =
           security.createSessionIdAndXsrfToken(siteId, user.id)

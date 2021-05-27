@@ -18,6 +18,9 @@ interface PageSession  {
   // ADD_TO_DOCS
   //
   weakSessionId?: St;
+
+  // If the session is for an embedded comments iframe.
+  sessType?: SessionType.AutoTokenSiteCustomSso;
 }
 
 interface __MainWinInterface extends Window {
