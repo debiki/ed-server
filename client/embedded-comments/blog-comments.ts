@@ -595,10 +595,10 @@ function removeCommentsAndEditor() {
       loadingText.remove();
     }
   }
-  loadingElms = null;
-  iframeElms = null;
-  iframesInited = null;
-  pendingIframeMessages = null;
+  loadingElms.length = 0;
+  iframeElms.length = 0;
+  iframesInited.length = 0;
+  pendingIframeMessages.length = 0;
 
   if (editorIframe) {
     //editorIframe.remove();  // done above
