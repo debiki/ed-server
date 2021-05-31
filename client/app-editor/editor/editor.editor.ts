@@ -718,6 +718,7 @@ export const Editor = createFactory<any, EditorState>({
           eds.embeddedPageId = inWhichFrame.eds.embeddedPageId;
           eds.embeddingUrl = inWhichFrame.eds.embeddingUrl;
           eds.embeddedPageAltId = inWhichFrame.eds.embeddedPageAltId;
+          eds.lazyCreatePageInCatId = inWhichFrame.eds.lazyCreatePageInCatId;
         }
       }
       catch (ex) {
