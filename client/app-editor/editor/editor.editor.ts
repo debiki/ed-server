@@ -1804,7 +1804,7 @@ export const Editor = createFactory<any, EditorState>({
       editorsPageId:
           // If the page was just lazy-created (embedded comments), need to specify
           // the correct id. [4HKW28]
-          eds.embeddedPageId ||
+          !isNoPage(eds.embeddedPageId) ? eds.embeddedPageId :
               state.editorsPageId,
     };
 

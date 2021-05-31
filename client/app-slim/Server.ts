@@ -38,8 +38,10 @@ const SessionIdHeaderName = 'X-Ty-Sid';
 const AvoidCookiesHeaderName = 'X-Ty-Avoid-Cookies';
 
 export function getPageId(): PageId | U {   // move elsewhere?
-  return eds.embeddedPageId || // [4HKW28]
-      ReactStore.allData().currentPageId;
+  return !isNoPage(eds.embeddedPageId) ? eds.embeddedPageId : // [4HKW28]
+      ReactStore.allData().currentPageId || (
+        // old,  CLEAN_UP  REMOVE
+        eds.embeddedPageId || ReactStore.allData().currentPageId);
 }
 
 interface OngoingRequest {
