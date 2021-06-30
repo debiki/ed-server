@@ -891,9 +891,10 @@ object JsX {
   }
 
 
-  def apiV0_parseExternalUser(jsObj: JsObject, ssoId: St, errSuffix: St): ExternalUser = {
+  def apiV0_parseExternalUser(jsObj: JsObject, ssoId: Opt[St] = None)
+          : ExternalUser = {
     ExternalUser(  // Typescript ExternalUser [7KBA24Y] no SingleSignOnUser
-          ssoId = ssoId,
+          ssoId = ssoId getOrElse parseSt(jsObj, "ssoId"),
           extId = (jsObj \ "extId").asOptStringNoneIfBlank,
           primaryEmailAddress = (jsObj \ "primaryEmailAddress").as[String].trim,
           isEmailAddressVerified = (jsObj \ "isEmailAddressVerified").as[Boolean],

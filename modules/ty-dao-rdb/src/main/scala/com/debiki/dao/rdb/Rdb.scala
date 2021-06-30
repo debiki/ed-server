@@ -220,7 +220,7 @@ object Rdb {
   def getInt(rs: js.ResultSet, column: String): Int =
     getInt32(rs, column)
 
-  def getInt32(rs: js.ResultSet, column: String): Int = {
+  def getInt32(rs: js.ResultSet, column: String): i32 = {
     var value = rs.getInt(column)
     dieIf(rs.wasNull, "TTyECOLINTISNL", s"Column int value is null: $column")
     value

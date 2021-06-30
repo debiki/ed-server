@@ -24,7 +24,8 @@ object Dependencies {
   }
 
   object Libs {
-
+CR_CONT_HERE
+// git difftool -d d48c1c04d661110f1 HEAD  #  Upd chromedriver ... Blog comments SSO
     // Scala / Java 11 compat, see: https://github.com/eed3si9n/scalaxb/issues/481
     //val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.3.1"
 

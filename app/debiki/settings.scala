@@ -111,14 +111,17 @@ trait AllSettings {
   // Instead, after logout, needs to be sent to somewhere else.
   //
   def ssoLoginRequiredLogoutUrl: St  ; RENAME // to ssoAuthnRequiredTyLogoutRedirUrl
+                                            // no?, to: ssoMustLoginToReadTyLogoutRedirUrl 
 
   // Like ssoLoginRequiredLogoutUrl, but is for logging out pat from the SSO website
   // too, not just from Talkyard. And always redirects, not only if authn required.
   // (Can be nice with both, in case sometimes one wants to log out from Ty only,
-  // but not from the SSO site and IDP?)
+  // but not from the SSO site? Then, we'd send pat to ssoLoginRequiredLogoutUrl,
+  // otherwise (to log out from the SSO site too) to ssoLogoutRedirUrl.)
   def ssoLogoutRedirUrl: St
 
   // 0 = none, 1 = sign up, 2 = log in, 4 = logout, 7 = all
+  // Not yet in use — first need to remember the session type.
   def ssoShowEmbAuthnBtns: i32
 
   def ssoPasetoV2LocalSecret: St;
@@ -640,16 +643,11 @@ case class EffectiveSettings(
       None
   }
 
-  def effSsoLogoutRedirUrl: Opt[St] = { // [350RKDDF5]
+  def effSsoLogoutRedirUrl: Opt[St] = {
     if (enableSso && ssoLogoutRedirUrl.nonEmpty)
       Some(ssoLogoutRedirUrl)
     else
       None
-  }
-
-  def ssoEnabledWithEmbToken: Bo = {
-    enableSso && ssoUrl.nonEmpty && (
-          ssoPasetoV2LocalSecret.nonEmpty || ssoPasetoV2PublicKey.nonEmpty)
   }
 
   def allowCorsFromParsed: Seq[String] = {
@@ -1048,7 +1046,7 @@ object Settings2 {
     }
 
   private def anyInt(json: JsValue, field: St, default: i32): Opt[Opt[i32]] =
-    anyInt32(json, field, default)
+    anyInt32(json, field = field, default = default)
 
   private def anyInt32(json: JsValue, field: St, default: i32): Opt[Opt[i32]] = {
     anyInt64(json, field, default.toLong) map { anyVal64 =>

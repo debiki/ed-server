@@ -99,7 +99,7 @@ package object core {
   def isDevOrTest: Bo = Prelude.isDevOrTest
   def isProd: Bo = Prelude.isProd
 
-  type SignOnId = St   // [Scala_3] opaque type
+  type SignOnId = St   // [Scala_3] opaque type   change to SsoId?
 
   type ParsedEmail = St   // [Scala_3] opaque type
 

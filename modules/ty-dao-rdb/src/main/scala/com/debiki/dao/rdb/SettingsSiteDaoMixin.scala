@@ -458,7 +458,7 @@ trait SettingsSiteDaoMixin extends SiteTransaction {
       ssoPasetoV2LocalSecret = getOptString(rs, "sso_paseto_v2_loc_secret_c"),
       ssoPasetoV2PublicKey = getOptString(rs, "sso_paseto_v2_pub_pub_key_c"),
       ssoRefreshAuthnTokenUrl = getOptString(rs, "sso_refresh_authn_token_url_c"),
-      rememberEmbSess = getOptInt(rs, "remember_emb_sess_c").map(_ == 1),
+      rememberEmbSess = getOptInt32(rs, "remember_emb_sess_c").map(_ == 1),
       expireIdleEmbSessAfterMins = getOptInt32(rs, "expire_idle_emb_sess_after_mins_c"),
       forumMainView = getOptString(rs, "forum_main_view"),
       forumTopicsSortButtons = getOptString(rs, "forum_topics_sort_buttons"),

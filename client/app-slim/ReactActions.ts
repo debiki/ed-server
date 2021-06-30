@@ -78,7 +78,7 @@ export function loadMyself(afterwardsCallback?) {
   // tab, and we don't want to break it by deleting cookies. Instead login temp cookies are
   // deleted by the server.)
 
-  Server.loadMyself((user) => {   // + session type?
+  Server.loadMyself((user) => {
     if (isInSomeEmbCommentsIframe()) {
       // Tell the embedded comments or embedded editor iframe that we just logged in,
       // also include the session id, so Talkyard's script on the embedding page
@@ -91,9 +91,9 @@ export function loadMyself(afterwardsCallback?) {
       const settings: SettingsVisibleClientSide = store.settings;
       const rememberEmbSess =
               settings.rememberEmbSess !== false &&
-              // If pat got logged in automatically, then logout will be automatic too
-              // — could be surprising for pat if hen had to click buttons to log out,
-              // when didn't need to do that, to log in.
+              // If we got logged in automatically, then logout will be automatic too
+              // — could be surprising if we had to click buttons to log out,
+              // when we didn't need to do that, to log in.
               typs.sessType !== SessionType.AutoTokenSiteCustomSso;
       sendToOtherIframe([
         'justLoggedIn', { user, weakSessionId, pubSiteId: eds.pubSiteId,  // [JLGDIN]
@@ -141,7 +141,7 @@ export function logoutClientSideOnly(ps: { goTo?: St } = {}) {
 
   if (eds.isInEmbeddedCommentsIframe) {
     // Tell the editor iframe that we've logged out.
-    // And maybe we'll redirect the embedd*ing* window. [.redir_parnt]
+    // And maybe we'll redirect the embedd*ing* window.  [sso_redir_par_win]
     sendToOtherIframe(['logoutClientSideOnly', ps]);
 
     // Probaby not needed, since reload() below, but anyway:
@@ -154,10 +154,10 @@ export function logoutClientSideOnly(ps: { goTo?: St } = {}) {
 
   if (ps.goTo) {
     if (eds.isInIframe) {
-      // Then we'll redirect the parent window instead [.redir_parnt]
+      // Then we'll redirect the parent window instead. [sso_redir_par_win]
     }
     else {
-      location.assign(ps.goTo);  // [9UMD24]
+      location.assign(ps.goTo);
     }
     // If that for some reason won't do anything, then make sure we really forget
     // all logged in state anyway:
@@ -169,7 +169,7 @@ export function logoutClientSideOnly(ps: { goTo?: St } = {}) {
   else {
     // Quick fix that reloads the admin page (if one views it) so login dialog appears.
     // But don't do in the goTo if branch — apparently location.reload()
-    // cancels location.assign(..).
+    // cancels location.assign(..) — even if done on the lines after (!).
     location.reload();
   }
 }

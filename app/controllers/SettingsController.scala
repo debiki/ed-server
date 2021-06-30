@@ -144,14 +144,15 @@ class SettingsController @Inject()(cc: ControllerComponents, edContext: EdContex
 
   def decodePasetoV2LocalToken: Action[JsValue] = AdminPostJsonAction(maxBytes = 1000) {
           req: JsonPostRequest =>
+    unused("TyE22340MS35566", "REST API decodePasetoV2LocalToken not in use")
     val tokenSt = JsonUtils.parseSt(req.body, "token")
     val prefixAndToken = if (tokenSt startsWith "paseto:") tokenSt else s"paseto:$tokenSt"
     val ssoPasetoV2LocalSecret = req.siteSettings.ssoPasetoV2LocalSecret
     val token = PasetoSec.decodePasetoV2LocalToken(
-          prefixAndToken = prefixAndToken, ssoPasetoV2LocalSecret)
+          prefixAndToken = prefixAndToken, symmetricSecret = ssoPasetoV2LocalSecret)
     OkSafeJson(
         Json.obj(
-          "token" -> token.toString))
+          "tokenDecrypted" -> token.toString))  // is this Base64? Convert to JSON?
   }
 
 }

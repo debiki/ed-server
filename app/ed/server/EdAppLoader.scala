@@ -25,27 +25,6 @@ class EdAppLoader extends ApplicationLoader {
     val isProd = context.environment.mode == play.api.Mode.Prod
     Globals.setIsProdForever(isProd)
 
-    /*
-    { //  TEST
-    import dev.paseto.jpaseto.{Pasetos => pas_Pasetos}
-    import dev.paseto.jpaseto.lang.{Keys => pas_Keys}
-    import java.security.{KeyPair, PublicKey, PrivateKey}
-
-    // We need a secret key, so we'll create one just for this example. Usually
-    // the key would be read from your application configuration instead.
-    val key: javax.crypto.SecretKey = pas_Keys.secretKey()
-    //val key: KeyPair = pas_Keys.keyPairFor(dev.paseto.jpaseto.Version.V2)
-    //val pubKey: PublicKey = key.getPublic
-    //val privKey: PrivateKey = key.getPrivate
-
-    val token: String = (pas_Pasetos.V2.LOCAL.builder() // pas_Pasetos.V2.PUBLIC.builder()
-        .setSubject("brynne")
-        //.setPrivateKey(privKey)
-        .setSharedSecret(key)
-        .compact)
-    logger.info(s"PASETO token:  $token  ")
-    } */
-
     logger.info("Starting... [TyMHELLO]")
     val app = new EdAppComponents(context).application
     logger.info("Started. [TyMSTARTED]")

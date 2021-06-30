@@ -1045,7 +1045,6 @@ const LoginAndSignupSettings = createFactory({
         r.h2({ className: 'col-sm-offset-3 s_A_Ss_S_Ttl'},
           "Your custom Single Sign-On (SSO)"),
 
-        // signonButtonName,  signonButtonImage,  signonUrl,  refreshAuthnTokenUrl,  logoutUrl,   authnPopupWinWidth  authnPopupWinHeight   authnPopupWinIconUrl,   Enable custom Sign-On [  ],   Single Sign-On  [ ]  Disables all other ways to sign up and log in
         r.p({ className: 'col-sm-offset-3 s_A_Ss_Expl'},
           "This lets you log in to Talkyard, " +
           "using your own custom Single Sign-On, if any. " +
@@ -1085,7 +1084,7 @@ const LoginAndSignupSettings = createFactory({
         }),
 
         // Ignored, without SSO and login-required-to-read. [350RKDDF5]
-        // MOVE to below the SSO checkbox?
+        // MOVE to below the SSO checkbox?  NEXT
         !enableTySso || !loginRequired ? null : Setting2(props, {
           type: 'text', label: "SSO After Logout URL",
           className: 'e_SsoAftLgoUrl',
@@ -1155,11 +1154,12 @@ const LoginAndSignupSettings = createFactory({
             r.p({},
               "If you want people to get logged out at your website, " +
               "when they log out from Talkyard, then, specify a URL here, " +
-              "to which Talkyard can redirect your users, " +
-              "once they've logged out from Talkyard, " +
-              "so you can log them out from your website too. Example: "),
+              "to which Talkyard will redirect your users, " +
+              "when they log out from Talkyard. " +
+              "Then, when they visit that URL, at your website, " +
+              "you can log them out from your website too. Example: "),
             r.p({},
-              r.samp({}, "https://www.your-website.com/logout"))),
+              r.samp({}, "https://www.your-website.com/api/logout"))),
           getter: (s: Settings) => s.ssoLogoutRedirUrl,
           update: (newSettings: Settings, target: HInpElm) => {
             newSettings.ssoLogoutRedirUrl = target.value;
@@ -1198,10 +1198,12 @@ const LoginAndSignupSettings = createFactory({
               });
             }), className: 'e_EmbComSecr_GenB', }, "Generate new"),
             r.p({},
-              "For embedded comments Single Sign-On via user data embedded " +
-              "in your html pages (e.g. in your blog posts). " +
+              "For embedded comments Single Sign-On (SSO) " +
+              "via user info that your server includes " +
+              "in a Javascript variable in your website's html pages " +
+              "(e.g. in your blog posts). " +
               "Tech wise, this is a shared symmetric encryption secret, " +
-              "for generating PASETO v2.local tokens.")),
+              "for PASETO v2.local tokens.")),
           getter: (s: Settings) => s.ssoPasetoV2LocalSecret,
           update: (newSettings: Settings, target: HInpElm) => {
             newSettings.ssoPasetoV2LocalSecret = target.value;

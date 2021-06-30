@@ -359,6 +359,7 @@ function addOneExtUserTests(variants: SsoLoginTestVariants, getApiSecret: () => 
     user_brB.rememberCurrentUrl();
     user_brB.topbar.clickLogout({
           waitForLoginButton: !variants.loginRequired && !variants.ssoLogoutUrl });
+    // We check below if the url afterwards is correct.
   });
 
 

@@ -19,7 +19,7 @@ interface PageSession  {
   //
   weakSessionId?: St;
 
-  // If the session is for an embedded comments iframe.
+  // If the session is for an embedded comments iframe. REMOVE incl in sid instead, somehow.
   sessType?: SessionType.AutoTokenSiteCustomSso;
 }
 

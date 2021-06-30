@@ -630,7 +630,7 @@ object Prelude {   CLEAN_UP; RENAME // to BugDie and re-export the interesting
     acb.Base64.encodeBase64URLSafeString(mdSha1.digest(text.getBytes("UTF-8")))
 
 
-  // ------  Move to a 'security' package?
+  /* ------  Move to a 'security' package?    [406MRED256]
   def base32EncodeSecretKey(key: javax.crypto.SecretKey): St = {
     val b32 = new acb.Base32(99999)  // "unlimited" line length
     b32.encodeToString(key.getEncoded)
@@ -651,7 +651,7 @@ object Prelude {   CLEAN_UP; RENAME // to BugDie and re-export the interesting
     // This uses java.security.SecureRandom.
     dev.paseto.jpaseto.lang.Keys.secretKey()
   }
-  // ------
+  // ------ */
 
   def hideEmailLocalPart(emailAddress: String): String =
     if (emailAddress.isEmpty) ""

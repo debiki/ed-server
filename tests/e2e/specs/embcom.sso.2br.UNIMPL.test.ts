@@ -117,6 +117,9 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     maria = forum.members.maria;
     maria.ssoId = 'maria_ssoid';   // TyTIMPWSSOID
     mariaExtUser = {
+      // Note: Username excluded, so we'll know that 'maria_ssoid' really gets
+      // used to look up the correct user, and we'll se username "Maria" although
+      // not specified here.  [.lookup_by_ssoid]
       ssoId: 'maria_ssoid',
       isEmailAddressVerified: true,
       primaryEmailAddress: maria.emailAddress,
@@ -342,7 +345,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
 
-  // ----- Combining emb SSO with direct SSO
+  // ----- Combining emb SSO with direct SSO   TyT306MRG2
 
   // Combining SSO in page PASETO tokens, with SSO login directly to forum:
 
@@ -503,7 +506,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     maria_brB.switchToEmbCommentsIframeIfNeeded();
     maria_brB.metabar.waitUntilLoggedIn();
   });
-  it(`... Maria not Selina is logged in`, () => {
+  it(`... Maria not Selina is logged in   [.lookup_by_ssoid]`, () => {
     assert.eq(maria_brB.metabar.getMyUsernameInclAt(), '@' + maria.username);
   });
 

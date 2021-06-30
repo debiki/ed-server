@@ -110,18 +110,25 @@ const enum UrlPaths {
 //
 const enum SessionType {
   /*
-  // Enum:
+  // Enum:  — no, bitfield this too? In case 2FA or MFA?
   UsernamePassword = 1,
   ServerGlobalOAuth = 2,
   SiteCustomOAuth = 3,
-  SiteCustomSso = 4,
+  SiteCustomOSaml = 4,
+  SiteCustomSso = 5,
+
+  ApiSecret =  // instead of SidOk("_api_secret_", ..)
+
+  EmailSecret = 8,
+  BackupCode = 9,
 
   // Combined with bitfield:
   // If pat got logged in without doing anything henself.
   // That's currently only for embedded comments, if the embedding page
   // includse a PASETO token in the HTML, which Talkyard then automatically
   // exchanges against a session id.
-  AutoToken = 64,
+  UrlOneTimeSecret = 64
+  AutoToken = 128,
   */
 
   AutoTokenSiteCustomSso = 72,  // AutoToken + SiteCustomSso, // = 72

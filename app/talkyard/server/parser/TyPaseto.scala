@@ -7,7 +7,7 @@ import org.scalactic.{Good, Or, Bad}
 
 
 
-object TyPaseto {  // RENAME to PasetoParSer?
+object TyPaseto {  // RENAME to PasetoParSer
 
 
   def apiV0_parseExternalUser(token: pas_Paseto): ExternalUser Or ErrMsg = {
@@ -20,6 +20,8 @@ object TyPaseto {  // RENAME to PasetoParSer?
   private def apiV0_parseExternalUserImpl(token: pas_Paseto): ExternalUser = {
     // See https://paseto.io/rfc/ for standard claims.
     val claims: pas_Claims = token.getClaims
+    if (claims eq null)
+      throwBadInpData("TyE40MGE3", "PASETO token with no claims: getClaims() says null")
 
     // The claims are of type java.util.Map[String, Object].
     import TyMap._
@@ -52,6 +54,7 @@ object TyPaseto {  // RENAME to PasetoParSer?
           avatarUrl = None,
           // BIO
           aboutUser = None,
+          // Change to None (undefined) so won't accidentally demote an admin
           isAdmin = false,
           isModerator = false)
   }

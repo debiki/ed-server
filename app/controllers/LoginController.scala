@@ -156,7 +156,9 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
       }
       else {
         TemporaryRedirect(
-              goToNext.orElse(redirectIfMayNotSeeUrlPath) getOrElse "/")
+              goToNext.orElse(
+                  // Then we may see this path: (if any)
+                  redirectIfMayNotSeeUrlPath) getOrElse "/")
       }
 
     // Keep the xsrf cookie, so the login dialog will work.

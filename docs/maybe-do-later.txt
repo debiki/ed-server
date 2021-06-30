@@ -467,6 +467,9 @@ the server is offline.  And, the HttpOnly session offers a bit extra security.
 Server side sesison ids, maybe in Redis? So can log ppl out, without having access
 to their browsers to delete session cookies.
 (Also see [offline-first] above: need two cookies.)
+Include session type (e.g. pwd, oauth, email secret, sso, emb sso) in sid:s,
+see: SessionType.AutoTokenSiteCustomSso, and: SidOk("_api_secret_".
+Also see: [weaksid].
 
 [hide_authn_btns]
 If auto logged in via token in embedd*ing* html, then, don't show logout button

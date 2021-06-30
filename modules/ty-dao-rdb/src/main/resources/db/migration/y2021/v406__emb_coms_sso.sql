@@ -1,4 +1,4 @@
-
+-- CR_MISSING
 create domain http_url_d text;
 alter domain http_url_d add constraint http_url_d_c_regex check (
     value ~ 'https?:\/\/[a-z0-9_.-]+(/.*)?');

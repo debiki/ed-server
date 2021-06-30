@@ -44,7 +44,7 @@ object ParseText {
 /** Parses JSON. Throws human friendly IllegalArgumentException:s. Is,a bit more concise
   * than Play's built in stuff.
   */
-object JsonUtils {   MOVE // to talkyard.server.parser.TyJson
+object JsonUtils {   MOVE // to talkyard.server.parser.JsonParSer
 
   RENAME // to BadDataEx? And change TyJson, TyMap, TyPaseto so they get
   // an extra param: inclStackTraceInErrors: Bo = false.

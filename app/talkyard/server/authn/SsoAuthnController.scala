@@ -186,8 +186,6 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
     import req.{siteId, siteSettings}
     import debiki.JsonUtils._
 
-    throwForbiddenIf(globals.isProd, "TyE403MRD67", "Not yet tested enough")
-
     val anyUserJsObj: Opt[JsObject] = if (globals.isProd) None else {
       // Later: "user" field, if prod — then would need an API secret.
       // But maybe everyone can just use /-/v0/upsert-user instead.
@@ -201,13 +199,11 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
     throwBadReqIf(anyUserJsObj.isDefined && anyAuthnToken.isDefined,
       "TyE0SSOTKN", "Got both 'userDevTest' and 'userInAuthnToken'")
 
-    val symmetricSecret: St = siteSettings.ssoPasetoV2LocalSecret
-
     val extUserFromJson: Opt[ExternalUser] = anyUserJsObj map { userJsObj =>
-      val soId = parseSt(userJsObj, "soId")
-      JsX.apiV0_parseExternalUser(
-            userJsObj, ssoId = soId, errSuffix = "TyEBADEXTUSR07")
+      JsX.apiV0_parseExternalUser(userJsObj)
     }
+
+    val symmetricSecret: St = siteSettings.ssoPasetoV2LocalSecret
 
     val extUserFromToken: Opt[ExternalUser] = anyAuthnToken map { prefixAndToken: St =>
       val token: pas_Paseto = talkyard.server.security.PasetoSec.decodePasetoV2LocalToken(
@@ -220,6 +216,7 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
         //throwBadReq("TyENOCLAIMS052", "Paseto token has no expiration, 'exp', claim")
       }
 
+      SECURITY; SHOULD // require expiration time above
       SECURITY; COULD  // remember issued-at, per user, and require that
       // it's > the highest seen issued at — that'd prevent reply attacks,
       // also within the expiration window.
@@ -276,8 +273,7 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
       throwBadRequest("TyEBADEXTUSR", ex.getMessage)
     }
 
-    val extUser: ExternalUser = JsX.apiV0_parseExternalUser(
-          bodyObj, ssoId = ssoId, errSuffix = "TyEBADEXTUSR02")
+    val extUser: ExternalUser = JsX.apiV0_parseExternalUser(bodyObj, ssoId = Some(ssoId))
 
     val (user, isNew) =
           upsertUser(extUser, request, mayOnlyInsertNotUpdate = true)
@@ -314,16 +310,13 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
     throwForbiddenIf(!request.isViaApiSecret,
         "TyEAPI0SECR04", "The API may be called only via Basic Auth and an API secret")
 
-    val (ssoId, bodyObj) = Try {
-      val body = asJsObject(request.body, "request body")
-      val ssoId = parseSt(body, "ssoId")  // [395KSH20]  hmm, "sigOnId" or "soId" better than ssoId?
-      (ssoId, body)
+    val bodyObj = Try {
+      asJsObject(request.body, "request body")
     } getOrIfFailure { ex =>
       throwBadRequest("TyEBADEXTUSR03", ex.getMessage)
     }
 
-    val extUser: ExternalUser = JsX.apiV0_parseExternalUser(
-          bodyObj, ssoId = ssoId, errSuffix = "TyEBADEXTUSR04")
+    val extUser: ExternalUser = JsX.apiV0_parseExternalUser(bodyObj)
 
     // Send back the user incl username — we might have changed it: removed forbidden
     // punctuation, for example, and the requester might want to know about that so it can

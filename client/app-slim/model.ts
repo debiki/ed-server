@@ -993,11 +993,9 @@ interface SettingsVisibleClientSide extends TopicInterfaceSettings {
   doubleTypeEmailAddress?: boolean;     // default: false
   doubleTypePassword?: boolean;         // default: false
   ssoUrl?: string;                      // default: undefined
-  ssoLogoutRedirUrl?: St;               // default: undefined
   ssoShowEmbAuthnBtns?: ShowEmbAuthnBtnsBitf;  // default: undef —> All
   enableSso?: boolean;                  // default: undefined —> false
   effectiveSsoLoginRequiredLogoutUrl?: boolean;  // default: undefined —> empty
-  ssoWithEmbToken?: Bo;                 // default: undefined —> false
   rememberEmbSess?: Bo;                 // default: undef —> true
   enableApi?: boolean;                  // default: undefined —> true
   minPasswordLength?: number;           // default: 10
@@ -1593,7 +1591,6 @@ interface Settings extends TopicInterfaceSettings {
   rememberEmbSess: Bo;
   expireIdleEmbSessAfterMins: Nr;
 
-
   //ssoButtonTitle: St;
   //ssoButtonDescr: St;
   //ssoButtonImageUrl: St;
@@ -2162,6 +2159,7 @@ interface IframeOffsetWinSize {
 interface GenPasetoV2LocSecrResp {
   pasetoV2LocalSecret: St;
 }
+
 
 
 // =========================================================================

@@ -6,9 +6,9 @@ import java.util.{Map => j_Map}
 
 
 
-object TyMap {
+object TyMap {  // RENAME to MapParSer
 
-  // Or move to opaque type SignOnId?  [Scala_3]
+  MOVE // to class ScalarsParSer,  opaque type SignOnId?  [Scala_3]
   def parseSignOnId(idMaybe: St): SignOnId = {
     if (idMaybe.isEmpty) throwBadInpData("TyE5603MRE245", "Sign-On ID is empty")
     idMaybe
@@ -25,16 +25,18 @@ object TyMap {
   def parseOptSt(map: j_Map[St, AnyRef], fieldName: St): Opt[St] = {
     val value: AnyRef = map.get(fieldName)
     if (value eq null) return None
-    if (!value.isInstanceOf[String]) None // throw?
-    else Some(value.asInstanceOf[String])
+    throwBadInpDataIf(!value.isInstanceOf[St], "TyE740MGE3M",
+          s"'$fieldName' is not text, but a ${classNameOf(value)}")
+    Some(value.asInstanceOf[St])
   }
 
 
   def parseOptBo(map: j_Map[St, AnyRef], fieldName: St): Opt[Bo] = {
     val value: AnyRef = map.get(fieldName)
     if (value eq null) return None
-    if (!value.isInstanceOf[Bo]) None // or throw?
-    else Some(value.asInstanceOf[Bo])
+    throwBadInpDataIf(!value.isInstanceOf[Bo], "TyE5WM3GM6A2",
+          s"'$fieldName' is not a boolean, but a ${classNameOf(value)}")
+    Some(value.asInstanceOf[Bo])
   }
 
 
@@ -47,10 +49,14 @@ object TyMap {
 
   def parseOptInt64(map: j_Map[St, AnyRef], fieldName: St): Opt[i64] = {
     val value: AnyRef = map.get(fieldName)
-    if (value eq null) return None
-    if (value.isInstanceOf[i32]) Some(value.asInstanceOf[i32].toLong)
+    if (value eq null) None
+    else if (value.isInstanceOf[i32]) Some(value.asInstanceOf[i32].toLong)
     else if (value.isInstanceOf[i64]) Some(value.asInstanceOf[i64])
-    else None
+    else if (value.isInstanceOf[i8]) Some(value.asInstanceOf[i8].toLong)
+    else if (value.isInstanceOf[i16]) Some(value.asInstanceOf[i16].toLong)
+    else if (value.isInstanceOf[u16]) Some(value.asInstanceOf[u16].toLong)
+    else throwBadInpData("TyEJ205MM6AH",
+          s"'$fieldName' is not an integer, but a ${classNameOf(value)}")
   }
 
 

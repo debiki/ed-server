@@ -630,18 +630,23 @@ function onMessage(event) {
       break;
       */
     case 'justLoggedIn':
-      if (eventData.rememberEmbSess) try {
+      /*
+      if (eventData.rememberEmbSess) */
+      try {
         const item = {
           pubSiteId: eventData.pubSiteId,
           weakSessionId: eventData.weakSessionId,
         };
         const isUndef = item.weakSessionId === 'undefined'; // this'd be a bug elsewhere
+        /*
+        Got changeg to  SessionType.AutoToken (bitfield). Setting name: 'rememberEmbSess'.
         if (eventData.sessionType === 'AuthnToken') {
           // Then the embedding page includes a 'authnToken' token,
           // if we're logged in — don't combine that with localStorage, would get
           // too complicated?
         }
-        else if (!item.weakSessionId || isUndef) {
+        else */
+        if (!item.weakSessionId || isUndef) {
           debugLog(`weakSessionId missing [TyE0WKSID]: ${JSON.stringify(eventData)}`);
           if (isUndef) {
             debugger;
