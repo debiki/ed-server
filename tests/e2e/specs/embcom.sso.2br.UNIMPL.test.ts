@@ -94,18 +94,18 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     // (since Owen would get emails).
     builder.settings({
       numFirstPostsToApprove: 0,
-      //maxPostsPendApprBefore: 0,
       numFirstPostsToReview: 0,
       enableApi: true,
     });
 
     builder.getSite().apiSecrets = [apiSecret];
 
+    /*
     builder.getSite().pageNotfPrefs = [{
       memberId: forum.members.owen.id,
       notfLevel: c.TestPageNotfLevel.Muted,
       wholeSite: true,
-    }];
+    }]; */
 
     brA = new TyE2eTestBrowser(wdioBrowserA);
     brB = new TyE2eTestBrowser(wdioBrowserB);
@@ -117,8 +117,8 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     maria = forum.members.maria;
     maria.ssoId = 'maria_ssoid';   // TyTIMPWSSOID
     mariaExtUser = {
-      // Note: Username excluded, so we'll know that 'maria_ssoid' really gets
-      // used to look up the correct user, and we'll se username "Maria" although
+      // Exclude Maria's name, so we'll know that 'maria_ssoid' really gets used
+      // to look up the correct user, and we'll se username "Maria" although
       // not specified here.  [.lookup_by_ssoid]
       ssoId: 'maria_ssoid',
       isEmailAddressVerified: true,
@@ -165,7 +165,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     owen_brA.adminArea.settings.clickSaveAll();
   });
 
-  it(`Owen creates an external login page`, () => {
+  it(`There are external SSO login pages`, () => {
     u.createSingleSignOnPagesInHtmlDir();
   });
 
@@ -175,14 +175,15 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let selinasToken: St | U;
 
-  it(`An embedding server generates a login token for Selina and Maria`, async () => {
+  it(`An external server converts the symmetric secret to bytes`, () => {
     const pasetoV2LocalSecretNoHexPrefix = pasetoV2LocalSecret.replace(/^hex:/, '');
     sharedSecretKeyBytes = Buffer.from(
             pasetoV2LocalSecretNoHexPrefix, 'hex');
             // 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef', 'hex');
   });
 
-  it(`An embedding server generates a login token for Selina`, async () => {
+  it(`The external server generates a login token for Selina`, async () => {
+    // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify(selinaAutnhMsg);
     const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
     selinasToken = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
@@ -198,12 +199,19 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let mariasToken: St | U;
 
-  it(`... and a token for Maria`, async () => {
+  it(`... plus a token for Maria`, async () => {
     const mariaAutnhMsg = {
       data: {
         user: mariaExtUser,
       },
     };
+
+    // ttt: The name will come from the database, not the token:
+    assert.not(mariaAutnhMsg.data.user.username);
+    assert.not(mariaAutnhMsg.data.user.fullName);
+    assert.ok(maria.username && maria.fullName);
+
+    // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify(mariaAutnhMsg);
     const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
     mariasToken = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
@@ -218,7 +226,8 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let badAuthnToken: St | U;
 
-  it(`... a bad login token appears from nowhere`, async () => {
+  it(`... a bad login token appears from nowhere (!)`, async () => {
+    // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify(selinaAutnhMsg);
     const badKeyBytes = Buffer.from(
             'bad00bad00bad00bad00beefdeadbeefdeadbeefdeadbeefdeadbeefbaadbeef', 'hex');
@@ -227,19 +236,53 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
       const encoder = wrongKey.protocol();
       return encoder.encrypt(messageAsSt, wrongKey);
     }).then(token => {
-      console.log(`Generated PASETO token:  ${token}`);
+      console.log(`Generated bad PASETO token:  ${token}`);
+      return 'paseto:' + token;
+    });;
+  });
+
+  let tokenNoUser: St | U;
+
+  it(`... another one with a missing 'user' field  (weird, why!)`, async () => {
+    // Dupl code [.e2e_encr_paseto]
+    const messageAsSt = JSON.stringify({ data: { user: null }});
+    const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
+    tokenNoUser = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
+      const encoder = sharedSecretKey.protocol();
+      return encoder.encrypt(messageAsSt, sharedSecretKey);
+    }).then(token => {
+      console.log(`Generated a PASETO token without any 'user' field:  ${token}`);
+      return 'paseto:' + token;
+    });;
+  });
+
+  let tokenNoSsoId: St | U;
+
+  it(`... another one with no 'ssoId' field  (what's going on!)`, async () => {
+    // Dupl code [.e2e_encr_paseto]
+    const messageAsSt = JSON.stringify({ data: { user: { username: 'Brynolf' } }});
+    const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
+    tokenNoSsoId = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
+      const encoder = sharedSecretKey.protocol();
+      return encoder.encrypt(messageAsSt, sharedSecretKey);
+    }).then(token => {
+      console.log(`Generated a PASETO token without any 'user' field:  ${token}`);
       return 'paseto:' + token;
     });;
   });
 
 
-  it(`Owen creates an embedding page`, () => {
+
+
+  it(`There's a website with embedding pages`, () => {
     const dir = 'target';
-    fs.writeFileSync(`${dir}/so-as-selina.html`, makeHtml('aaa', '#500', selinasToken));
-    fs.writeFileSync(`${dir}/so-as-maria.html`, makeHtml('aaa', '#500', mariasToken));
+    fs.writeFileSync(`${dir}/so-as-selina.html`, makeHtml('aaa', '#050', selinasToken));
+    fs.writeFileSync(`${dir}/so-as-maria.html`, makeHtml('aaa', '#005', mariasToken));
     //fs.writeFileSync(`${dir}/so-as-samuel.html`, makeHtml('bbb', '#040'));
-    fs.writeFileSync(`${dir}/so-bad-token.html`, makeHtml('bbb', '#040', badAuthnToken));
-    fs.writeFileSync(`${dir}/so-no-token.html`, makeHtml('bbb', '#040'));
+    fs.writeFileSync(`${dir}/so-bad-token.html`, makeHtml('bbb', '#500', badAuthnToken));
+    fs.writeFileSync(`${dir}/so-no-token.html`, makeHtml('bbb', '#520'));
+    fs.writeFileSync(`${dir}/so-no-user.html`, makeHtml('bbb', '#502', tokenNoUser));
+    fs.writeFileSync(`${dir}/so-no-ssoid.html`, makeHtml('bbb', '#511', tokenNoSsoId));
     function makeHtml(pageName: string, bgColor: string, authnToken?: St): string {
       return u.makeEmbeddedCommentsHtml({
               pageName, discussionId: '', authnToken, localHostname, bgColor});
@@ -257,10 +300,10 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   it(`There's no logout button — not included, when auto logged in via token,
           then, the embedd*ing* page manages login/out
-          by including/excluding a PASETO token`, () => {
-    // assert.not(selina_brB.metabar.isLogoutBtnDisplayed());   [hide_authn_btns]
+          by including/excluding a PASETO token   UNIMPL   [hide_authn_btns]`, () => {
+    // assert.not(selina_brB.metabar.isLogoutBtnDisplayed());
   });
-  it(`... and no login button of course (already logged in)`, () => {
+  it(`... and no login button  (already logged in)`, () => {
     assert.not(selina_brB.metabar.isLoginButtonDisplayed());
   });
 
@@ -283,8 +326,8 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   it(`... there's a Login button`, () => {
     assert.ok(selina_brB.metabar.isLoginButtonDisplayed());
   });
-  it(`... no logout button`, () => {
-    //assert.not(selina_brB.metabar.isLogoutBtnDisplayed());   [hide_authn_btns]
+  it(`... no logout button  UNIMPL   [hide_authn_btns]`, () => {
+    //assert.not(selina_brB.metabar.isLogoutBtnDisplayed());
   });
 
 
@@ -310,24 +353,44 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     selina_brB.switchToEmbeddedCommentsIrame();
     assert.not(selina_brB.metabar.isMyUsernameVisible());
   });
-  it(`... and now, no login or logout buttons`, () => {
-    //assert.not(selina_brB.metabar.isLoginButtonDisplayed());   [hide_authn_btns]
+  it(`... and now, no login or logout buttons  UNIMPL  [hide_authn_btns]`, () => {
+    //assert.not(selina_brB.metabar.isLoginButtonDisplayed());
     assert.not(selina_brB.metabar.isLogoutBtnDisplayed());
   });
 
 
 
+  // ----- Bad tokens
+
   it(`Selina goes to a page but The Token is Bad!`, () => {
     selina_brB.go2(embeddingOrigin + '/so-bad-token.html');
   });
-
   it(`... there's a server error dialog`, () => {
     selina_brB.switchToEmbCommentsIframeIfNeeded();
     selina_brB.serverErrorDialog.waitAndAssertTextMatches('TyEPASSECEX_');
   });
 
+  it(`Selina goes to a page with an ok token, but no 'user' field`, () => {
+    selina_brB.go2(embeddingOrigin + '/so-no-user.html');
+  });
+  it(`... there's a server error dialog`, () => {
+    selina_brB.switchToEmbCommentsIframeIfNeeded();
+    selina_brB.serverErrorDialog.waitAndAssertTextMatches(
+          'TyEPARMAP0MAP_.*TyEPASCLAIMS_');
+  });
 
-  it(`Selina returns to embedding page aaa, with an embedded authn token`, () => {
+  it(`Selina goes to a page with an ok token, but no 'ssoId' field`, () => {
+    selina_brB.go2(embeddingOrigin + '/so-no-ssoid.html');
+  });
+  it(`... there's a server error dialog`, () => {
+    selina_brB.switchToEmbCommentsIframeIfNeeded();
+    selina_brB.serverErrorDialog.waitAndAssertTextMatches('TyEPARMAP0ST_.*TyEPASCLAIMS_');
+  });
+
+
+
+
+  it(`Selina returns to embedding page so-as-selina.html, with her token`, () => {
     selina_brB.go2(embeddingOrigin + '/so-as-selina.html');
   });
 
@@ -336,13 +399,23 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
 
+
+  // ----- View one's profile, via authn token login
+
+
   it(`Selina clicks her username in the pagebar`, () => {
     selina_brB.metabar.openMyProfilePageInNewTab();
   });
 
   it(`... a new tab opens; she switches to it`, () => {
+    assert.eq(selina_brB.origin(), embeddingOrigin);
     selina_brB.swithToOtherTabOrWindow();
   });
+
+  it(`... she's now at the Talkyard server  (but not the embedding site)`, () => {
+    assert.eq(selina_brB.origin(), site.origin);
+  });
+
 
 
   // ----- Combining emb SSO with direct SSO   TyT306MRG2
@@ -364,13 +437,14 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     selinasProfilePageUrl = selina_brB.getUrl();
     selina_brB.rememberCurrentUrl();
     urlPath = selina_brB.urlPath();
+    assert.eq(urlPath, '/-/users/selina_un/activity/posts');  // ttt
     selina_brB.topbar.clickLogin();
   });
 
   it(`... gets to the dummy external login page, at localhost:8080`, () => {
     selina_brB.waitForNewUrl();
     const urlNow = selina_brB.getUrl();
-    assert.eq(urlNow, ssoUrlVarsReplaced(urlPath));  // /-/users/selina_un/activity/posts
+    assert.eq(urlNow, ssoUrlVarsReplaced(urlPath));
 
     // http://localhost:8080/sso-dummy-login.html?returnPath=/-/users/selina_un/activity/posts
   });
@@ -394,6 +468,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
             origin: site.origin, oneTimeSecret: oneTimeLoginSecret,
             thenGoTo: selinasProfilePageUrl });
     selina_brB.waitForNewUrl();
+    assert.eq(selina_brB.origin(), site.origin);
   });
 
   it(`... now Selina is logged in`, () => {
@@ -428,7 +503,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
 
 
-  it(`But at the no-token page, she still isn't logged in`, () => {
+  it(`At the no-token page, she isn't logged in`, () => {
     brB.go2(embeddingOrigin + '/so-no-token.html');
     brB.switchToEmbCommentsIframeIfNeeded();
     brB.metabar.waitUntilNotLoggedIn();
@@ -476,8 +551,8 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   // url gone, pat no longer gets logged out from the embedding site.
   // So the logout button doesn't work, any more. Then, don't show it?
   //
-  // However, for now, it's there, just reloads the iframe (thereafter, still logged in.)
-  //
+  // ----------------
+  // For now only, it's there, just reloads the iframe:  (thereafter, still logged in.)
   it(`... clicks Log Out again`, () => {
     selina_brB.metabar.clickLogout({ waitForLoginButton: false });
   });
@@ -485,16 +560,17 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
             the embedding site still includes the PASETO authn token`, () => {
     selina_brB.metabar.waitUntilLoggedIn();
   });
-  /*
+  // ----------------
   // Later:
   it(`Now there's no logout button — Selena will need to use the embedding site's
             login and logout buttons instead,
             since just logging out from Ty wouldn't have any effect; the embedding
-            page would still include the authn token`, () => {
-    assert.not(selina_brB.metabar.isLogoutBtnDisplayed());
-    // Not needed but anyway, a bit ttt:
+            page would still include the authn token  UNIMPL  [hide_authn_btns]`, () => {
+    //assert.not(selina_brB.metabar.isLogoutBtnDisplayed());
+    // ttt:
     assert.not(selina_brB.metabar.isLoginButtonDisplayed());
-  }); */
+  });
+  // ----------------
 
 
 
@@ -502,7 +578,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     brB.go2(embeddingOrigin + '/so-as-maria.html');
   });
 
-  it(`Now Maria's token is embedded in the HTML instead`, () => {
+  it(`Maria's token is embedded in the HTML`, () => {
     maria_brB.switchToEmbCommentsIframeIfNeeded();
     maria_brB.metabar.waitUntilLoggedIn();
   });

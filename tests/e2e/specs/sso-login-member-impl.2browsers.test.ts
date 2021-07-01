@@ -146,17 +146,6 @@ function constructSsoLoginTest(testName: string, variants: SsoLoginTestVariants)
 
   it("Owen creates an external login page, and after-logout page", () => {
     utils.createSingleSignOnPagesInHtmlDir();
-    /*
-    // Chrome? Webdriverio? wants a 200 OK reply, so need to create this dummy page.
-    utils.createPageInHtmlDirUnlessExists(loginPageSlug,
-            '<html><body>\n' +
-            "SSO Login Ty test page. [8906QKSHM40]\n" +
-            '</body></html>\n');
-    utils.createPageInHtmlDirUnlessExists(afterLogoutPageSlug,
-            '<html><body>\n' +
-            "After Logout Ty SSO test page. [AFT_LGO_TST_537503_]\n" +
-            '</body></html>\n');
-            */
   });
 
 

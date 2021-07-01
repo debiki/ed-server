@@ -709,7 +709,7 @@ export class TyE2eTestBrowser {
         this.complex.waitUntilLoggedIn();
       },
 
-      waitUntilKnowsNotLoggedIn: () => {
+      waitUntilKnowsNotLoggedIn: (): TestMyself => {
         this.waitForMyDataAdded();
         let me = {} as Partial<TestMyself>;
         this.waitUntil(() => {
@@ -719,10 +719,11 @@ export class TyE2eTestBrowser {
           message: () =>
               `Waiting until not logged in, me now: ${me.username || me.fullName}`,
         });
+        return me;
       },
 
       waitAndGetMyself: (): TestMyself => {
-        return this.#br.waitUntil(() => {
+        return this.waitUntil(() => {
           return this.#br.execute(function() {
             try {
               return window['debiki2'].ReactStore.getMe();
@@ -731,6 +732,8 @@ export class TyE2eTestBrowser {
               return false;
             }
           });
+        }, {
+          message: `Waiting for theStore.me  TyT6503MES63Z`
         }) as TestMyself;
       },
     }
@@ -5282,7 +5285,7 @@ export class TyE2eTestBrowser {
           this.switchToEmbeddedCommentsIrame();
         }
         this.waitForVisible('.esMetabar');
-        this.waitForGone(this.metabar.__myName);
+        this.waitForGone(this.metabar.__myName);  // later, move to above 'return',  [hide_authn_btns]
       },
 
       openMetabar: () => {
@@ -7456,7 +7459,7 @@ export class TyE2eTestBrowser {
             this.setCheckbox('.e_EnblSso input', enabled);
           },
 
-          setShowEmbAuthnBtns: (enabled: boolean) => {
+          setShowEmbAuthnBtns: (enabled: Bo) => {
             this.scrollIntoViewInPageColumn('.e_EmbAuBs input');
             this.waitUntilDoesNotMove('.e_EmbAuBs input');
             this.setCheckbox('.e_EmbAuBs input', enabled);
@@ -8534,7 +8537,7 @@ export class TyE2eTestBrowser {
     // so autocomplete can be used
     complex = {
       waitUntilLoggedIn: () => {   // RENAME  use me.waitUntilLoggedIn()  instead
-        this.#br.waitUntil(() => {
+        this.waitUntil(() => {
           return this.#br.execute(function() {
             try {
               return window['debiki2'].ReactStore.getMe().isLoggedIn;
@@ -8543,6 +8546,8 @@ export class TyE2eTestBrowser {
               return false;
             }
           });
+        }, {
+          message: `Waiting for theStore.me  TyT6503MES633`
         });
 
         if (this.metabar.isVisible()) {

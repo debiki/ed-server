@@ -17,7 +17,7 @@ object TyMap {  // RENAME to MapParSer
 
   def parseSt(map: j_Map[St, AnyRef], fieldName: St): St = {
     parseOptSt(map, fieldName) getOrElse {
-      throwBadInpData("TyE46MR496", s"Field missing: '$fieldName', should be text")
+      throwBadInpData("TyEPARMAP0ST_", s"Field missing: '$fieldName', should be text")
     }
   }
 
@@ -62,7 +62,7 @@ object TyMap {  // RENAME to MapParSer
 
   def parseNestedMap(map: j_Map[St, AnyRef], fieldName: St): j_Map[St, AnyRef] = {
     parseOptNestedMap(map, fieldName) getOrElse {
-      throwBadInpData("TyE46MREJ2",
+      throwBadInpData("TyEPARMAP0MAP_",
             s"Field missing: '$fieldName', should be a nested map")
     }
   }

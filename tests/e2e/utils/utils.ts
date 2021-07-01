@@ -308,7 +308,7 @@ authnTokenScript + `
   ssoLogoutRedirPageSlug: 'logout-redir-page.html',
 
   createSingleSignOnPagesInHtmlDir() {
-    // Chrome? Webdriverio? wants a 200 OK reply, so need to create this dummy page.
+    // Chrome? Webdriverio? wants a 200 OK reply, so we need dummy pages.
     utils.createPageInHtmlDirUnlessExists(utils.ssoLoginPageSlug,
             '<html><body>\n' +
             "SSO Login Ty test page. [8906QKSHM40]\n" +

@@ -630,9 +630,7 @@ function onMessage(event) {
       break;
       */
     case 'justLoggedIn':
-      /*
-      if (eventData.rememberEmbSess) */
-      try {
+      if (eventData.rememberEmbSess) try {
         const item = {
           pubSiteId: eventData.pubSiteId,
           weakSessionId: eventData.weakSessionId,

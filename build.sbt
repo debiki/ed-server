@@ -63,11 +63,7 @@ val appDependencies = Seq(
   Dependencies.Libs.jpasetoApi,
   Dependencies.Libs.jpasetoImpl,
   Dependencies.Libs.jpasetoGson,
-  //Dependencies.Libs.jpasetoJackson,
-  //Dependencies.Libs.jpasetoBouncyCastle,
-  //Dependencies.Libs.bouncyCastle,
   Dependencies.Libs.jpasetoSodium,
-  //Dependencies.Libs.edsaCryptoAlg,
 
   // PostgreSQL JDBC client driver
   // see: https://mvnrepository.com/artifact/org.postgresql/postgresql/

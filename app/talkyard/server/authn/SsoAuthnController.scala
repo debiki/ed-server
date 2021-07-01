@@ -222,7 +222,7 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
       // also within the expiration window.
 
       TyPaseto.apiV0_parseExternalUser(token) getOrIfBad { problem =>
-        throwBadReq("TyEPARSECLMS", s"Error parsing Paseto token claims: $problem")
+        throwBadReq("TyEPASCLAIMS_", s"Error parsing Paseto token claims: $problem")
       }
     }
 
