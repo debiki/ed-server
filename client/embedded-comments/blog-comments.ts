@@ -629,7 +629,7 @@ function onMessage(event) {
       debiki.Utterscroll.stopScrolling(eventData);
       break;
       */
-    case 'justLoggedIn':  // look at all changes.
+    case 'justLoggedIn':
       if (eventData.rememberEmbSess) try {
         const item = {
           pubSiteId: eventData.pubSiteId,
