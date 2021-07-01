@@ -78,7 +78,7 @@ const apiSecret: TestApiSecret = {
 let pasetoV2LocalSecret = '';
 
 
-// REN this file  & selina –> e
+
 describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () => {
 
   it(`Construct site`, () => {
