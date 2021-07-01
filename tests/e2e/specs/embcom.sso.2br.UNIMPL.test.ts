@@ -42,10 +42,12 @@ const selinaAutnhMsg = {
     //lookupKey: 'soid:selina_sign_on_id',
     user: {
       ...selinaExtUser,
-      soId: 'selina-soid',   // REMOVE  use ssoId instead
+      //soId: 'selina-soid',   // REMOVE  use ssoId instead
     },
   },
 };
+
+let selinaWithMariasEmailAuthnMsg = _.cloneDeep(selinaAutnhMsg);
 
 
 const localHostname = 'comments-for-e2e-test-embsth-localhost-8080';
@@ -77,7 +79,7 @@ const apiSecret: TestApiSecret = {
 let pasetoV2LocalSecret = '';
 
 
-
+// REN this file
 describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () => {
 
   it(`Construct site`, () => {
@@ -100,12 +102,11 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
     builder.getSite().apiSecrets = [apiSecret];
 
-    /*
     builder.getSite().pageNotfPrefs = [{
       memberId: forum.members.owen.id,
-      notfLevel: c.TestPageNotfLevel.Muted,
+      notfLevel: c.TestPageNotfLevel.EveryPost,
       wholeSite: true,
-    }]; */
+    }];
 
     brA = new TyE2eTestBrowser(wdioBrowserA);
     brB = new TyE2eTestBrowser(wdioBrowserB);
@@ -126,6 +127,10 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     };
 
     selina_brB = brB;
+    selinaWithMariasEmailAuthnMsg.data.user = {
+      ...mariaExtUser,
+      ssoId: selinaExtUser.ssoId,
+    };
 
     assert.refEq(builder.getSite(), forum.siteData);
   });
@@ -226,7 +231,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let badAuthnToken: St | U;
 
-  it(`... a bad login token appears from nowhere (!)`, async () => {
+  it(`... a bad login token appears from nowhere (what!)`, async () => {
     // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify(selinaAutnhMsg);
     const badKeyBytes = Buffer.from(
@@ -243,7 +248,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let tokenNoUser: St | U;
 
-  it(`... another one with a missing 'user' field  (weird, why!)`, async () => {
+  it(`... another one with a missing 'user' field  (hmm!)`, async () => {
     // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify({ data: { user: null }});
     const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
@@ -251,22 +256,38 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
       const encoder = sharedSecretKey.protocol();
       return encoder.encrypt(messageAsSt, sharedSecretKey);
     }).then(token => {
-      console.log(`Generated a PASETO token without any 'user' field:  ${token}`);
+      console.log(`Generated a PASETO token with no 'user' field:  ${token}`);
       return 'paseto:' + token;
     });;
   });
 
   let tokenNoSsoId: St | U;
 
-  it(`... another one with no 'ssoId' field  (what's going on!)`, async () => {
+  it(`... another one with no 'ssoId' field  (gah!)`, async () => {
     // Dupl code [.e2e_encr_paseto]
-    const messageAsSt = JSON.stringify({ data: { user: { username: 'Brynolf' } }});
+    const messageAsSt = JSON.stringify(
+            { data: { user: { username: 'Brynolf' } }});  // 'ssoId' missing
     const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
     tokenNoSsoId = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
       const encoder = sharedSecretKey.protocol();
       return encoder.encrypt(messageAsSt, sharedSecretKey);
     }).then(token => {
-      console.log(`Generated a PASETO token without any 'user' field:  ${token}`);
+      console.log(`Generated a PASETO token with no 'ssoId' field:  ${token}`);
+      return 'paseto:' + token;
+    });;
+  });
+
+  let tokenWrongEmail: St | U;
+
+  it(`... another one with Selena's 'ssoId' but Maria's email  (oops!)`, async () => {
+    // Dupl code [.e2e_encr_paseto]
+    const messageAsSt = JSON.stringify(selinaWithMariasEmailAuthnMsg);
+    const sharedSecretKey  = new Paseto.SymmetricKey(new Paseto.V2());
+    tokenWrongEmail = await sharedSecretKey.inject(sharedSecretKeyBytes).then(() => {
+      const encoder = sharedSecretKey.protocol();
+      return encoder.encrypt(messageAsSt, sharedSecretKey);
+    }).then(token => {
+      console.log(`Generated PASETO token with Selena's id but Maria's email:  ${token}`);
       return 'paseto:' + token;
     });;
   });
@@ -283,6 +304,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     fs.writeFileSync(`${dir}/so-no-token.html`, makeHtml('bbb', '#520'));
     fs.writeFileSync(`${dir}/so-no-user.html`, makeHtml('bbb', '#502', tokenNoUser));
     fs.writeFileSync(`${dir}/so-no-ssoid.html`, makeHtml('bbb', '#511', tokenNoSsoId));
+    fs.writeFileSync(`${dir}/so-wrong-email.html`, makeHtml('bbb', '#404', tokenWrongEmail));
     function makeHtml(pageName: string, bgColor: string, authnToken?: St): string {
       return u.makeEmbeddedCommentsHtml({
               pageName, discussionId: '', authnToken, localHostname, bgColor});
@@ -295,7 +317,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
   it(`... can reply directly, auto logged in via PASETO token`, () => {
-    selina_brB.complex.replyToEmbeddingBlogPost("I got logged in via a PASETO token");
+    selina_brB.complex.replyToEmbeddingBlogPost("I got logged_in_via_a_PASETO_token");
   });
 
   it(`There's no logout button — not included, when auto logged in via token,
@@ -359,6 +381,12 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
 
+  it(`Now a reply notf email has arrived to Owen`, () => {
+    server.waitUntilLastEmailMatches(site.id, owen.emailAddress,
+          [selinaExtUser.username, "logged_in_via_a_PASETO_token"]);
+  });
+
+
 
   // ----- Bad tokens
 
@@ -387,6 +415,31 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     selina_brB.serverErrorDialog.waitAndAssertTextMatches('TyEPARMAP0ST_.*TyEPASCLAIMS_');
   });
 
+  it(`Selina goes to a page with a token with her id, but Maria's email`, () => {
+    selina_brB.go2(embeddingOrigin + '/so-wrong-email.html');
+  });
+  it(`... Selena is logged in as Selena. Talkyard here ignores the email
+          — it's used only during the first upsert (i.e. insert).
+          To change the user after that, the external user database should instead
+          call  /-/v0/upsert-user`, () => {
+    selina_brB.switchToEmbCommentsIframeIfNeeded();
+    selina_brB.me.waitUntilLoggedIn();
+    assert.eq(selina_brB.metabar.getMyUsernameInclAt(), '@' + selinaExtUser.username);
+  });
+  it(`... she replies`, () => {
+    selina_brB.complex.replyToEmbeddingBlogPost(`My id but_wrong_email`);
+  });
+  it(`... her name, 'Selena', not 'Maria', is shown as the author`, () => {
+    assert.eq(selina_brB.topic.getPostAuthorUsernameInclAt(c.FirstReplyNr),
+          '@' + selinaExtUser.username);
+  });
+
+
+  it(`... Owen gets notified via email — from Selena not Maria`, () => {
+    server.waitUntilLastEmailMatches(site.id, owen.emailAddress,
+          [selinaExtUser.username, "but_wrong_email"]);
+  });
+
 
 
 
@@ -395,7 +448,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
   it(`... she's logged in, can reply, just like before`, () => {
-    selina_brB.complex.replyToEmbeddingBlogPost("Logged in via a PASETO token, msg 2");
+    selina_brB.complex.replyToEmbeddingBlogPost("Logged in via a PASETO token, msg 3");
   });
 
 
@@ -594,7 +647,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   });
 
 
-  // Maybe later:
+  // TESTS_MISSING Maybe later:
   // Expired token — then try fetch from authn server, once iframe is in view?
   // That'll be a separate test?
 

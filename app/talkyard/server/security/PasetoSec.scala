@@ -34,11 +34,10 @@ object PasetoSec {
     val secretKey = decodeSecretKeySt(symmetricSecret)
     val pasetoPrefix = "paseto:"
     throwForbiddenIf(!prefixAndToken.startsWith(pasetoPrefix),
-          "TyE4A603MSJ", s"'${pasetoPrefix}...' prefix missing")
+          "TyE4A603MSJ", s"'$pasetoPrefix...' prefix missing")
     val v2LocalToken: St = prefixAndToken.drop(pasetoPrefix.length)
-    val v2LocalDot: St = "v2.local."
-    throwForbiddenIf(!v2LocalToken.startsWith(v2LocalDot),
-          "TyEU9KTKN4862", o"""PASETO token missing '$v2LocalDot', it instead
+    throwForbiddenIf(!v2LocalToken.startsWith("v2.local."),
+          "TyEU9KTKN4862", o"""PASETO token missing 'v2.local.', it instead
           looks like so: "${v2LocalToken.take(25)} …".""")
 
     // See https://github.com/paseto-toolkit/jpaseto
@@ -54,7 +53,7 @@ object PasetoSec {
         case ex: pas_PasetoSecurityEx =>
           throwBadReq("TyEPASSECEX_", s"Error parsing Paseto token: ${ex.toString}")
         case ex: Exception =>
-          throwBadReq("TyEPARSETKNST", s"Error parsing Paseto token: ${ex.toString}")
+          throwBadReq("TyEPASUNKEX", s"Error parsing Paseto token: ${ex.toString}")
       }
     }
     token

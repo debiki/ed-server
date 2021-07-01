@@ -8,7 +8,7 @@ import com.debiki.core._
   * Package name "parser" = "*par*se and *ser*ialize".
   *
   */
-package object parser {
+package object parser {  RENAME // to  pase
 
 
   def throwBadInpDataIf(test: Bo, errCode: ErrCode, message: => St): U =

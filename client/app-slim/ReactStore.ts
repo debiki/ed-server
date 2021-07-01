@@ -146,9 +146,9 @@ ReactDispatcher.register(function(payload) {
       break;
 
     case ReactActions.actionTypes.Logout:
-      // This isn't really needed, since reload the page anyway,
-      // see logoutClientSideOnly(). But let's keep this anyway,
-      // in case we some day in the future don't want to reload the page.
+      // This isn't really needed, since we reload the page anyway,
+      // see logoutClientSideOnly(). But let's keep this, in case we some day
+      // in the future don't want to reload the page.
       // ---------
       $h.removeClasses(htmlElem, 'dw-is-admin dw-is-staff dw-is-authenticated');
       if (store.userIdsOnline) delete store.userIdsOnline[store.me.id];

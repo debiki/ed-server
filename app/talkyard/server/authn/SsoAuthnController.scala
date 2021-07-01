@@ -192,12 +192,12 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
       parseOptJsObject(req.body, "userDevTest")
     }
 
-    val anyAuthnToken = parseOptSt(req.body, "userInAuthnToken")
+    val anyAuthnToken = parseOptSt(req.body, "userAuthnToken")
 
     throwBadReqIf(anyUserJsObj.isEmpty && anyAuthnToken.isEmpty,
-      "TyE0SSOTKN", "No 'user' or 'userInAuthnToken' field")
+      "TyE0SSOTKN", "No 'user' or 'userAuthnToken' field")
     throwBadReqIf(anyUserJsObj.isDefined && anyAuthnToken.isDefined,
-      "TyE0SSOTKN", "Got both 'userDevTest' and 'userInAuthnToken'")
+      "TyE0SSOTKN", "Got both 'userDevTest' and 'userAuthnToken'")
 
     val extUserFromJson: Opt[ExternalUser] = anyUserJsObj map { userJsObj =>
       JsX.apiV0_parseExternalUser(userJsObj)
@@ -216,7 +216,7 @@ class SsoAuthnController @Inject()(cc: ControllerComponents, edContext: EdContex
         //throwBadReq("TyENOCLAIMS052", "Paseto token has no expiration, 'exp', claim")
       }
 
-      SECURITY; SHOULD // require expiration time above
+      SECURITY; SHOULD // require expiration time above, and max two hours or days?
       SECURITY; COULD  // remember issued-at, per user, and require that
       // it's > the highest seen issued at — that'd prevent reply attacks,
       // also within the expiration window.

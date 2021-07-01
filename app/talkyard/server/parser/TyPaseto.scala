@@ -7,7 +7,7 @@ import org.scalactic.{Good, Or, Bad}
 
 
 
-object TyPaseto {  // RENAME to PasetoParSer
+object TyPaseto {  // RENAME to PasetoPaSe
 
 
   def apiV0_parseExternalUser(token: pas_Paseto): ExternalUser Or ErrMsg = {

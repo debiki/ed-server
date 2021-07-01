@@ -349,7 +349,9 @@ const LoginDialogContent = createClassAndFactory({
     //logD(`location.toString() was: ${location.toString()}`);
 
     let shallRedir;
-    if (settings.effectiveSsoLoginRequiredLogoutUrl) {
+    if (settings.ssoWillRedirAfterLogout) {
+      // Then we can redirect to the login page too — that won't cause a
+      // redirect loop, since after logout we get redirected to somewhere else.
       // @ifdef DEBUG
       dieIf(!ssoUrl, 'TyE395KSETRS2');
       // @endif

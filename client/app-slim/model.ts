@@ -995,7 +995,7 @@ interface SettingsVisibleClientSide extends TopicInterfaceSettings {
   ssoUrl?: string;                      // default: undefined
   ssoShowEmbAuthnBtns?: ShowEmbAuthnBtnsBitf;  // default: undef —> All
   enableSso?: boolean;                  // default: undefined —> false
-  effectiveSsoLoginRequiredLogoutUrl?: boolean;  // default: undefined —> empty
+  ssoWillRedirAfterLogout?: Bo;         // default: undef —> false
   rememberEmbSess?: Bo;                 // default: undef —> true
   enableApi?: boolean;                  // default: undefined —> true
   minPasswordLength?: number;           // default: 10

@@ -629,7 +629,7 @@ function onMessage(event) {
       debiki.Utterscroll.stopScrolling(eventData);
       break;
       */
-    case 'justLoggedIn':
+    case 'justLoggedIn':  // look at all changes.
       if (eventData.rememberEmbSess) try {
         const item = {
           pubSiteId: eventData.pubSiteId,
@@ -637,7 +637,7 @@ function onMessage(event) {
         };
         const isUndef = item.weakSessionId === 'undefined'; // this'd be a bug elsewhere
         /*
-        Got changeg to  SessionType.AutoToken (bitfield). Setting name: 'rememberEmbSess'.
+        Got changed to  SessionType.AutoToken (bitfield). Setting name: 'rememberEmbSess'.
         if (eventData.sessionType === 'AuthnToken') {
           // Then the embedding page includes a 'authnToken' token,
           // if we're logged in — don't combine that with localStorage, would get

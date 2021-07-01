@@ -5335,6 +5335,8 @@ export class TyE2eTestBrowser {
         return this.isVisible('.s_Pg_DdInf');
       },
 
+      postHeaderSelector: (postNr: PostNr) => `#post-${postNr} .dw-p-hd`,
+
       postBodySelector: (postNr: PostNr) => `#post-${postNr} .dw-p-bd .dw-p-bd-blk`,
 
       forAllPostIndexNrElem: (fn: (index: number, postNr: PostNr, elem) => void) => {
@@ -5695,6 +5697,11 @@ export class TyE2eTestBrowser {
 
       getTopicAuthorUsernameInclAt: (): string => {
         return this.waitAndGetVisibleText('.dw-ar-p-hd .esP_By_U');
+      },
+
+      getPostAuthorUsernameInclAt: (postNr: PostNr): St => {
+        const sel = this.topic.postHeaderSelector(postNr);
+        return this.waitAndGetVisibleText(sel + ' .esP_By_U');
       },
 
       clickFirstMentionOf: (username: string) => {

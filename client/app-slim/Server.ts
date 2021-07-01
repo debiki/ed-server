@@ -1100,7 +1100,7 @@ export function loginWithAuthnToken(authnToken: St | Ay,
   const isToken = _.isString(authnToken);
   const updSessionVars = makeUpdNoCookiesTempSessionIdFn(onOk, sessType);
   postJsonSuccess('/-/v0/upsert-user-and-login', updSessionVars, {
-    userInAuthnToken: isToken ? authnToken : undefined,
+    userAuthnToken: isToken ? authnToken : undefined,
     userDevTest: isToken ? undefined : authnToken,  // just for now, in dev/test
   });
 }

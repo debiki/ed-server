@@ -1153,13 +1153,13 @@ const LoginAndSignupSettings = createFactory({
           help: rFr({},
             r.p({},
               "If you want people to get logged out at your website, " +
-              "when they log out from Talkyard, then, specify a URL here, " +
-              "to which Talkyard will redirect your users, " +
+              "when they log out from Talkyard, then, specify a URL here. " +
+              "Talkyard then redirects your users to that URL, " +
               "when they log out from Talkyard. " +
-              "Then, when they visit that URL, at your website, " +
+              "And when they visit that URL, at your website, " +
               "you can log them out from your website too. Example: "),
             r.p({},
-              r.samp({}, "https://www.your-website.com/api/logout"))),
+              r.samp({}, "https://www.your-site/api/log-me-out"))),
           getter: (s: Settings) => s.ssoLogoutRedirUrl,
           update: (newSettings: Settings, target: HInpElm) => {
             newSettings.ssoLogoutRedirUrl = target.value;
@@ -1199,9 +1199,9 @@ const LoginAndSignupSettings = createFactory({
             }), className: 'e_EmbComSecr_GenB', }, "Generate new"),
             r.p({},
               "For embedded comments Single Sign-On (SSO) " +
-              "via user info that your server includes " +
-              "in a Javascript variable in your website's html pages " +
-              "(e.g. in your blog posts). " +
+              "via user info in a Javascript variable, " +
+              "which your server injects in your website's html pages " +
+              "(e.g. in your blog posts) if your website visitor is logged in. " +
               "Tech wise, this is a shared symmetric encryption secret, " +
               "for PASETO v2.local tokens.")),
           getter: (s: Settings) => s.ssoPasetoV2LocalSecret,

@@ -6,7 +6,7 @@ import java.util.{Map => j_Map}
 
 
 
-object TyMap {  // RENAME to MapParSer
+object TyMap {  // RENAME to MapPaSe
 
   MOVE // to class ScalarsParSer,  opaque type SignOnId?  [Scala_3]
   def parseSignOnId(idMaybe: St): SignOnId = {

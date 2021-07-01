@@ -39,7 +39,7 @@ import scala.util.matching.Regex
 // inherited by all JsObjVX and then they override and change only the things they do
 // different.
 //
-object JsX {
+object JsX {   RENAME // to JsonPaSe
 
   def JsSiteInclDetails_old(site: SiteInclDetails): JsObject = {
     Json.obj(

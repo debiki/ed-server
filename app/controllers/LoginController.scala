@@ -143,7 +143,7 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
         // (For embedded comments, maySee will be true.)
         val maySee = dao.mayStrangerProbablySeeUrlPathUseCache(urlPath)
         if (maySee) None
-        else siteSettings.effectiveSsoLoginRequiredLogoutUrl orElse Some("/")
+        else siteSettings.effSsoLogoutFromTyRedirUrlIfAuthnReqToRead orElse Some("/")
       }
     }
 

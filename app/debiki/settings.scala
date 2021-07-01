@@ -111,7 +111,7 @@ trait AllSettings {
   // Instead, after logout, needs to be sent to somewhere else.
   //
   def ssoLoginRequiredLogoutUrl: St  ; RENAME // to ssoAuthnRequiredTyLogoutRedirUrl
-                                            // no?, to: ssoMustLoginToReadTyLogoutRedirUrl 
+                                      // no?, to: ssoLogoutRedirUrlTyOnlyIfAuthnToRead
 
   // Like ssoLoginRequiredLogoutUrl, but is for logging out pat from the SSO website
   // too, not just from Talkyard. And always redirects, not only if authn required.
@@ -635,7 +635,7 @@ case class EffectiveSettings(
   def canLoginWithPassword: Bo = !useOnlyCustomIdps && !enableSso
   def canLoginAsGuest: Bo = isGuestLoginAllowed
 
-  def effectiveSsoLoginRequiredLogoutUrl: Option[String] = { // [350RKDDF5]
+  def effSsoLogoutFromTyRedirUrlIfAuthnReqToRead: Opt[St] = { // [350RKDDF5]
     COULD // do this also if usingCustomIdpSso
     if (enableSso && userMustBeAuthenticated && ssoLoginRequiredLogoutUrl.nonEmpty)
       Some(ssoLoginRequiredLogoutUrl)
