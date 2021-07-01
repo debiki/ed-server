@@ -137,13 +137,13 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
       request.dao.logout(theRequester, bumpLastSeen = true)
     }
 
-    val goToNext: Opt[St] = siteSettings.effSsoLogoutRedirUrl orElse {
+    val goToNext: Opt[St] = siteSettings.effSsoLogoutAllRedirUrl orElse {
       redirectIfMayNotSeeUrlPath flatMap { urlPath =>
         // May-not-see tested here: [TyT503KRDHJ2]. (May-see: Tested "everywhere".)
         // (For embedded comments, maySee will be true.)
         val maySee = dao.mayStrangerProbablySeeUrlPathUseCache(urlPath)
         if (maySee) None
-        else siteSettings.effSsoLogoutFromTyRedirUrlIfAuthnReqToRead orElse Some("/")
+        else siteSettings.effSsoLogoutFromTyRedirUrlIfAuthnReq orElse Some("/")
       }
     }
 

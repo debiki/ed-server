@@ -1152,7 +1152,7 @@ const LoginAndSignupSettings = createFactory({
           className: 'e_SsoLgoUrl',
           help: rFr({},
             r.p({},
-              "If you want people to get logged out at your website, " +
+              "If you want people to get logged out from your website, " +
               "when they log out from Talkyard, then, specify a URL here. " +
               "Talkyard then redirects your users to that URL, " +
               "when they log out from Talkyard. " +
@@ -1200,7 +1200,7 @@ const LoginAndSignupSettings = createFactory({
             r.p({},
               "For embedded comments Single Sign-On (SSO) " +
               "via user info in a Javascript variable, " +
-              "which your server injects in your website's html pages " +
+              "which your server needs to inject in your website's html pages " +
               "(e.g. in your blog posts) if your website visitor is logged in. " +
               "Tech wise, this is a shared symmetric encryption secret, " +
               "for PASETO v2.local tokens.")),

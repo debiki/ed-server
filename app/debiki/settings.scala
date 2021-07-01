@@ -635,7 +635,7 @@ case class EffectiveSettings(
   def canLoginWithPassword: Bo = !useOnlyCustomIdps && !enableSso
   def canLoginAsGuest: Bo = isGuestLoginAllowed
 
-  def effSsoLogoutFromTyRedirUrlIfAuthnReqToRead: Opt[St] = { // [350RKDDF5]
+  def effSsoLogoutFromTyRedirUrlIfAuthnReq: Opt[St] = { // [350RKDDF5]
     COULD // do this also if usingCustomIdpSso
     if (enableSso && userMustBeAuthenticated && ssoLoginRequiredLogoutUrl.nonEmpty)
       Some(ssoLoginRequiredLogoutUrl)
@@ -643,7 +643,7 @@ case class EffectiveSettings(
       None
   }
 
-  def effSsoLogoutRedirUrl: Opt[St] = {
+  def effSsoLogoutAllRedirUrl: Opt[St] = {
     if (enableSso && ssoLogoutRedirUrl.nonEmpty)
       Some(ssoLogoutRedirUrl)
     else

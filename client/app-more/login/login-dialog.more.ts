@@ -350,8 +350,10 @@ const LoginDialogContent = createClassAndFactory({
 
     let shallRedir;
     if (settings.ssoWillRedirAfterLogout) {
-      // Then we can redirect to the login page too — that won't cause a
-      // redirect loop, since after logout we get redirected to somewhere else.
+      // Then we can redirect to the login page here — that won't make logout
+      // impossible, because after logout we get redirected elsewhere,
+      // rather than staying at the Ty site, which would auto redirect to the
+      // SSO login page again which might log us in automatically.
       // @ifdef DEBUG
       dieIf(!ssoUrl, 'TyE395KSETRS2');
       // @endif

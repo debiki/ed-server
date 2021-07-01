@@ -1312,8 +1312,8 @@ object JsonMaker {
       json += "ssoUrl" -> JsString(settings.ssoUrl)
     if (settings.ssoUrl.nonEmpty && settings.enableSso)
       json += "enableSso" -> JsTrue
-    if (settings.effSsoLogoutFromTyRedirUrlIfAuthnReqToRead.nonEmpty ||
-        settings.effSsoLogoutRedirUrl.nonEmpty)
+    if (settings.effSsoLogoutFromTyRedirUrlIfAuthnReq.nonEmpty ||
+        settings.effSsoLogoutAllRedirUrl.nonEmpty)
       json += "ssoWillRedirAfterLogout" -> JsTrue
     if (settings.ssoShowEmbAuthnBtns != D.ssoShowEmbAuthnBtns)
       json += "ssoShowEmbAuthnBtns" -> JsNumber(settings.ssoShowEmbAuthnBtns)

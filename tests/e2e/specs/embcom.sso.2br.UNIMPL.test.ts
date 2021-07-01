@@ -42,7 +42,6 @@ const selinaAutnhMsg = {
     //lookupKey: 'soid:selina_sign_on_id',
     user: {
       ...selinaExtUser,
-      //soId: 'selina-soid',   // REMOVE  use ssoId instead
     },
   },
 };
@@ -79,7 +78,7 @@ const apiSecret: TestApiSecret = {
 let pasetoV2LocalSecret = '';
 
 
-// REN this file
+// REN this file  & selina –> e
 describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () => {
 
   it(`Construct site`, () => {
@@ -131,6 +130,8 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
       ...mariaExtUser,
       ssoId: selinaExtUser.ssoId,
     };
+    assert.eq(selinaWithMariasEmailAuthnMsg.data.user.primaryEmailAddress,  // ttt
+          maria.emailAddress);
 
     assert.refEq(builder.getSite(), forum.siteData);
   });
@@ -231,7 +232,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
 
   let badAuthnToken: St | U;
 
-  it(`... a bad login token appears from nowhere (what!)`, async () => {
+  it(`... a bad login token appears from nowhere (!)`, async () => {
     // Dupl code [.e2e_encr_paseto]
     const messageAsSt = JSON.stringify(selinaAutnhMsg);
     const badKeyBytes = Buffer.from(
@@ -418,7 +419,7 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
   it(`Selina goes to a page with a token with her id, but Maria's email`, () => {
     selina_brB.go2(embeddingOrigin + '/so-wrong-email.html');
   });
-  it(`... Selena is logged in as Selena. Talkyard here ignores the email
+  it(`... Selena gets logged in as Selena. Talkyard in this case ignores the email
           — it's used only during the first upsert (i.e. insert).
           To change the user after that, the external user database should instead
           call  /-/v0/upsert-user`, () => {
@@ -433,8 +434,6 @@ describe(`embcom.sso.token-direct-w-logout-url.2br.test.ts  TyTE2EEMBSSO1`, () =
     assert.eq(selina_brB.topic.getPostAuthorUsernameInclAt(c.FirstReplyNr),
           '@' + selinaExtUser.username);
   });
-
-
   it(`... Owen gets notified via email — from Selena not Maria`, () => {
     server.waitUntilLastEmailMatches(site.id, owen.emailAddress,
           [selinaExtUser.username, "but_wrong_email"]);
