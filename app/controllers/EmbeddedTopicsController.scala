@@ -49,7 +49,7 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
 
 
   def showTopic(embeddingUrl: String, discussionId: Option[AltPageId],   // [5BRW02]
-          edPageId: Option[PageId], category: Option[Ref]): Action[Unit] =
+          edPageId: Option[PageId], category: Option[Ref], scriptV: Opt[St]): Action[U] =
       AsyncGetActionMaybeSkipCookies(avoidCookies = true) { request =>
 
     import request.dao
@@ -173,13 +173,26 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
 
 
   def showEmbeddedEditor(embeddingUrl: St, discussionId: Option[AltPageId],
-          edPageId: Option[PageId], category: Option[Ref]): Action[Unit] =
+          edPageId: Option[PageId], category: Option[Ref], scriptV: Opt[St]): Action[U] =
         AsyncGetActionMaybeSkipCookies(avoidCookies = true) { request =>
     import request.{dao, requester}
 
-    val anyRealPageId = None /*getAnyRealPageId(
-          edPageId, discussionId, embeddingUrl, categoryRef = category, request.dao)
-          */
+    val isNewCode = scriptV.isDefined
+
+    // Maybe later:  — but for now, the editor gets to know about any page id,
+    // via messages from the comments iframes.
+    val anyRealPageId =
+          if (isNewCode) {
+            None
+          }
+          else {
+            // This branch will be in use for just a day or so, until the blog-comments.ts
+            // script cache time has expired.
+            DO_AFTER // 2021-08-01 delete this if branch.
+            // And clean up some [many_embcom_iframes].
+            getAnyRealPageId(
+                edPageId, discussionId, embeddingUrl, categoryRef = category, request.dao)
+          }
 
     val lazyCreatePageInCatId =
           if (anyRealPageId.isDefined) {
@@ -209,14 +222,15 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
         security.throwIndistinguishableNotFound(debugCode)
     }
 
-    BUG // harmless: Use the request origin instead of an URL param, for embeddingUrl?
+    // We need to pass the embedding url, so the callee will know if it's localhost
+    // — then we allow embedding, so can test.
     ViewPageController.addVolatileJsonAndPreventClickjacking2(htmlStr,
         unapprovedPostAuthorIds = Set.empty, request, embeddingUrl = Some(embeddingUrl))
   }
 
 
-  private def getAnyRealPageId(edPageId: Option[PageId], discussionId: Option[String],
-        embeddingUrl: String, categoryRef: Option[Ref], dao: SiteDao): Option[PageId] = {
+  private def getAnyRealPageId(tyPageId: Opt[PageId], discussionId: Opt[DiscId],
+        embeddingUrl: St, categoryRef: Opt[Ref], dao: SiteDao): Opt[PageId] = {
 
     // Lookup the page by Talkyard page id, if specified, otherwise
     // use the discussion id, or the embedding url, or, if no match,
@@ -268,7 +282,7 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
     // embeddingOrigin and data-category-ref makes sense then.
     // ---------------------------------------------------------
     //
-    edPageId orElse {
+    tyPageId orElse {
       discussionId.trimNoneIfBlank match {
         case Some(id) =>
           // If this finds nothing, then, don't try matching by embeddingUrl. — If the

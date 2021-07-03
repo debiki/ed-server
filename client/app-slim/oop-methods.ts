@@ -585,9 +585,9 @@ export function post_isPubVisible(post: Post): Bo {
 //----------------------------------
 
 
-export function me_merge(me1: Myself, me2: Partial<Myself>,
+export function me_merge(me1: Myself, me2: Partial<Myself> | U,
         me3?: Partial<Myself>): Myself {
-  let me = me_mergeImpl(me1, me2);
+  let me = me_mergeImpl(me1, me2 || {});
   if (me3) {
     me = me_mergeImpl(me, me3);
   }
@@ -1089,7 +1089,7 @@ export function page_makePostPatch(page: Page, post: Post): StorePatch {
 
 export function store_makeDraftPostPatch(store: Store, page: Page, draft: Draft)
       : StorePatch {
-  const draftPost = store_makePostForDraft(store, draft)
+  const draftPost = store_makePostForDraft(store.me.id, draft)
   return page_makePostPatch(page, draftPost);
 }
 
@@ -1098,7 +1098,7 @@ export function store_makeNewPostPreviewPatch(store: Store, page: Page,
       parentPostNr: PostNr | undefined, safePreviewHtml: string,
       newPostType?: PostType): StorePatch {
   const previewPost = store_makePreviewPost({
-      store, parentPostNr, safePreviewHtml, newPostType, isEditing: true });
+      authorId: store.me.id, parentPostNr, safePreviewHtml, newPostType, isEditing: true });
   return page_makePostPatch(page, previewPost);
 }
 
@@ -1136,7 +1136,8 @@ export function postType_toDraftType(postType: PostType): DraftType | undefined 
 }
 
 
-export function store_makePostForDraft(store: EmbSessionStore, draft: Draft): Post | null {
+// RENAME? to draft_makePreviewPost(draft, authorId)?
+export function store_makePostForDraft(authorId: PatId, draft: Draft): Post | Nl {
   const locator: DraftLocator = draft.forWhat;
   const parentPostNr = locator.postNr;
 
@@ -1150,7 +1151,7 @@ export function store_makePostForDraft(store: EmbSessionStore, draft: Draft): Po
   // For now, use the CommonMark source instead.
 
   const previewPost = store_makePreviewPost({
-      store, parentPostNr, unsafeSource: draft.text, newPostType: postType,
+      authorId, parentPostNr, unsafeSource: draft.text, newPostType: postType,
       isForDraftNr: draft.draftNr || true });
   return previewPost;
 }
@@ -1175,7 +1176,7 @@ export function post_makePreviewIdNr(parentNr: PostNr, newPostType: PostType): P
 
 
 interface MakePreviewParams {
-  store: EmbSessionStore;
+  authorId: PatId; // store: EmbSessionStore;
   parentPostNr?: PostNr;
   safePreviewHtml?: string;
   unsafeSource?: string;
@@ -1188,7 +1189,7 @@ interface MakePreviewParams {
 
 
 function store_makePreviewPost({
-    store,   // REFACTOR CLEAN_UP use autorId param instead, no need for the whole store [042MSED3M]
+    authorId,
     parentPostNr, safePreviewHtml, unsafeSource,
     newPostType, isForDraftNr, isEditing }: MakePreviewParams): Post {
 
@@ -1208,7 +1209,7 @@ function store_makePreviewPost({
     parentNr: parentPostNr,
     multireplyPostNrs: [], //PostNr[];
     postType: newPostType,
-    authorId: store.me.id,
+    authorId: authorId, // store.me.id,
     createdAtMs: now,
     //approvedAtMs?: number;
     //lastApprovedEditAtMs: number;
@@ -1245,7 +1246,7 @@ function store_makePreviewPost({
 
 /* Not in use, but maybe later? Instead, for now, this: [60MNW53].
 export function store_makeDeleteDraftPostPatch(store: Store, draft: Draft): StorePatch {
-  const draftPost = store_makePostForDraft(store, draft);
+  const draftPost = store_makePostForDraft(store.me.id, draft);
   return store_makeDeletePostPatch(draftPost);
 } */
 
@@ -1253,7 +1254,7 @@ export function store_makeDeleteDraftPostPatch(store: Store, draft: Draft): Stor
 export function store_makeDeletePreviewPostPatch(store: Store, parentPostNr: PostNr,
       newPostType?: PostType): StorePatch {
   const previewPost: Post = store_makePreviewPost({
-      store, parentPostNr, safePreviewHtml: '', newPostType });
+      authorId: store.me.id, parentPostNr, safePreviewHtml: '', newPostType });
   return store_makeDeletePostPatch(previewPost);
 }
 

@@ -66,7 +66,9 @@ function onMessage(event) {
 
   switch (eventName) {
     case 'loginWithAuthnToken':
+      // This gets sent to the first comments iframe only. [1st_com_frame]
       const authnToken = eventData;
+      // REFACTOR to Authn.loginWithToken, calls Server and loadMyself()? [ts_authn_modl]
       Server.loginWithAuthnToken(authnToken, SessionType.AutoTokenSiteCustomSso,
               function() {
         // typs.weakSessionId should have been updated by the above login fn.
@@ -75,21 +77,26 @@ function onMessage(event) {
 
       break;
     case 'loginWithOneTimeSecret':
+      // This gets sent to the first comments iframe only. [1st_com_frame]
       dieIf(!eds.isInEmbeddedCommentsIframe, 'TyE50KH4');
       const oneTimeLoginSecret = eventData;
+      // REFACTOR to Authn.loginWithOneTimeSecret? [ts_authn_modl]
       Server.loginWithOneTimeSecret(oneTimeLoginSecret, function() {
+        // REFACTOR call loadMyself() directly from loginWithOneTimeSecret().
         // typs.weakSessionId has been updated already by the above login fn.
         ReactActions.loadMyself();
       });
       break;
     case 'resumeWeakSession':
+      // This gets sent to the first comments iframe only. [1st_com_frame]
       dieIf(!eds.isInEmbeddedCommentsIframe, 'TyE305RK3');
       const pubSiteId = eventData.pubSiteId;
       if (eds.pubSiteId === pubSiteId) {
+        // REFACTOR break out fn Authn.loginWithOldSession()?  [ts_authn_modl]
         const mainWin = debiki2.getMainWin();
         mainWin.typs.weakSessionId = eventData.weakSessionId;
         typs.weakSessionId = eventData.weakSessionId;
-        // This will send 'justLoggedIn' to the editor iframe, so it'll get updated too.
+        // This sends 'justLoggedIn' to other iframes, so they'll get updated too.
         ReactActions.loadMyself();
       }
       else {
@@ -104,18 +111,23 @@ function onMessage(event) {
       // @ifdef DEBUG
       const mainWin: MainWin = getMainWin();
       if (!mainWin.typs.weakSessionId && !getSetCookie('dwCoSid')) {
-        logAndDebugDie(`Not really logged in? No cookie, no typs.weakSessionId. ` +
+        logAndDebugDie(`justLoggedIn but not logged in? ` +
+            `No cookie, no typs.weakSessionId. ` +
             `This frame name: ${window.name}, ` +
             `main frame name: ${mainWin.name}, ` +
             `this is main frame: ${window === mainWin}, ` +
             `mainWin.typs: ${JSON.stringify(mainWin.typs)} [TyE60UKTTGL35]`);
       }
+      // theStore.me was updated by ReactActions.loadMyself():
+      dieIf(!mainWin.theStore.me, 'justLoggedIn but theStore.me missing [TyE406MR4E2]');
+      dieIf(!eventData.user, 'justLoggedIn but user missing [TyE406MR4E3]');
       // @endif
       ReactActions.setNewMe(eventData.user);
       break;
     case 'logoutClientSideOnly':
-      // Sent from the comments iframe to the editor iframe, when one logs out in the comments iframe.
-      ReactActions.logoutClientSideOnly('SkipSend');
+      // Sent from the comments iframe to the editor iframe, when one logs out from
+      // the comments iframe.
+      ReactActions.logoutClientSideOnly({ skipSend: true });
       break;
     case 'scrollToPostNr':  // rename to loadAndShowPost  ? + add  anyShowPostOpts?: ShowPostOpts
       var postNr = eventData;

@@ -136,6 +136,8 @@ var postNrToFocus;  // RENAME to ...AfterCommentsLoaded
 let allUrlParams = '';
 let loadWeinre: Bo | U;
 
+const scriptVersionQueryParam = '&scriptV=2';
+
 const EditorIframeNr = 0;
 const FirstCommentsIframeNr = 1;
 // 2, 3, 4 etc are other comments iframes.
@@ -241,9 +243,10 @@ function createSessionFrame() {
   sessionIframe = Bliss.create('iframe', {
     id: 'talkyard-session',
     name: 'edComments',
-    title: "Embpty comments helper frame",
+    title: "Empty comments helper frame",
     src: serverOrigin + '/-/session-iframe',
     height: 0, // don't `hide()` [.hdn_iframe]
+    'aria-hidden': true,
     style: {
       padding: 0,
       margin: 0,
@@ -429,7 +432,7 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   allUrlParams =
           edPageIdParam + discIdParam + catRefParam + embeddingUrlParam +
-          htmlClassParam + logLevelParam;
+          htmlClassParam + logLevelParam + scriptVersionQueryParam;
 
   var commentsIframeUrl = serverOrigin + '/-/embedded-comments?' + allUrlParams;
   loadWeinre = window.location.hash.indexOf('&loadWeinre') >= 0;  // [WEINRE]
@@ -539,7 +542,8 @@ function createEditorIframe() {
 
   // The server needs the embedding URL, to know if it should
   let editorIframeUrl =
-        `${serverOrigin}/-/embedded-editor?embeddingUrl=${location.origin}`;
+        `${serverOrigin}/-/embedded-editor?embeddingUrl=${location.origin}` +
+        scriptVersionQueryParam;
   /*  ${allUrlParams}`; //
   if (manyCommentsIframes) {
     // Add just log level?
@@ -816,12 +820,12 @@ function onMessage(event) {
         // Noop.
       }
       else if (talkyardAuthnToken) {
-        sendToMainIframe(
+        sendToFirstCommentsIframe(
               JSON.stringify(['loginWithAuthnToken', talkyardAuthnToken]));
       }
       else if (oneTimeLoginSecret) {
         // Tell the comments iframe to login, using our one-time secret.  [306KUD244]
-        sendToMainIframe(
+        sendToFirstCommentsIframe(
               `["loginWithOneTimeSecret", "${oneTimeLoginSecret}"]`);
       }
       else {
@@ -846,7 +850,7 @@ function onMessage(event) {
         if (sessionStr) {
           try {
             const session = JSON.parse(sessionStr);
-            sendToMainIframe(
+            sendToFirstCommentsIframe(
                   ['resumeWeakSession', session]);
           }
           catch (ex) {
@@ -1050,7 +1054,7 @@ function sendToEditor(message) {
 
 
 
-function sendToMainIframe(message: Ay) {
+function sendToFirstCommentsIframe(message: Ay) {   // [1st_com_frame]
   sendToOneIframe(iframeElms[FirstCommentsIframeNr], message);
 }
 

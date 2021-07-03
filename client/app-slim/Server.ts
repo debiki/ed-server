@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Kaj Magnus Lindberg
+ * Copyright (c) 2014-2021 Kaj Magnus Lindberg
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -1429,8 +1429,8 @@ export function loadMyself(callback: (user: any) => void) {
   }
   // @endif
 
-  // Need to load data for the pages all iframes, not just the iframe we're in now.
-  // But not yet implemented server side.  [many_ifr_my_page_data]
+  // Need to load data for the discussions in all iframes, not only the iframe
+  // we're in now. But not implemented server side.  [many_ifr_my_page_data]
   // Therefore, BUG: If many comments iframes, will *look* as if changing notf
   // level, has no effect. But in fact it works.
   let pageIds = getPageId();
@@ -1439,6 +1439,7 @@ export function loadMyself(callback: (user: any) => void) {
       const mainWin = getMainWin();
       if (mainWin.tydyn) {
         pageIds = mainWin.tydyn.allIframePageIds.join(',');
+        // (Could ifdef-debug check that cur page id is included)
       }
     }
     catch (ex) {
@@ -1446,7 +1447,7 @@ export function loadMyself(callback: (user: any) => void) {
     }
   }
   // SHOULD incl sort order & topic filter in the url params. [2KBLJ80]
-  get(`/-/load-my-page-data?pageId=${pageIds}`, callback);
+  get(`/-/load-my-page-data?pageIds=${pageIds}`, callback);
 }
 
 
@@ -1659,8 +1660,9 @@ export function loadDraftAndGuidelines(draftLocator: DraftLocator, writingWhat: 
 }
 
 
-// CLEAN_UP pass page id, so simpler to understand if in emb emb editor and there're
-// many discussions on different Ty iframes, different Ty page ids. [manyiframes_pageid]
+// CLEAN_UP pass page id (instead of using getPageId() below), so simpler to understand
+// if in emb emb editor and there're many discussions in different Ty iframes,
+// different Ty page ids. [manyiframes_pageid]
 export function loadDraftAndText(postNr: PostNr,
       onDone: (response: LoadDraftAndTextResponse) => void) {
   get(`/-/load-draft-and-text?pageId=${getPageId()}&postNr=${postNr}`, onDone, undefined, {

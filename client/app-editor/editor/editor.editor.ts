@@ -815,7 +815,7 @@ export const Editor = createFactory<any, EditorState>({
       const state: EditorState = this.state;
       if (this.isGone) return;
       if (state.inWhichFrame !== inWhichFrame) return;
-      const store: Store = state.store;
+      const store: Store = state.store;  // do instead?: this.getMainStore(inWhichFrame);
       const draft: Draft | undefined = response.draft;
 
       // In case the draft was created when one wasn't logged in, then, now, set a user id.

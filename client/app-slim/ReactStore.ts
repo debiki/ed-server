@@ -25,6 +25,10 @@
 // CLEAN_UP try to remove this dependency from here.
 /// <reference path="utils/scroll-into-view.ts" />
 
+
+// Old comment! Do *not* start using Redux or any such, in Ty's case, over complicated
+// things. Instead, remove the Flux pattern and call Store fns directly, [flux_mess].
+//
 /* This Flux store is perhaps a bit weird, not sure. I'll switch to Redux or
  * Flummox or Fluxxor or whatever later, and rewrite everything in a better way?
  * Also perhaps there should be more than one store, so events won't be broadcasted
@@ -41,7 +45,7 @@ const htmlElem = document.getElementsByTagName('html')[0];
 declare const EventEmitter3; // don't know why, but the TypeScript defs doesn't work.
 export const ReactStore = new EventEmitter3();
 
-export function getMainWinStore(): EmbSessionStore {  // RENAME QUICK to win_getSessWinStore()
+export function getMainWinStore(): EmbSessionStore {  // RENAME QUICK to win_getSessFrameStore()
   const mainWin = getMainWin();
   return mainWin.theStore;
 }
@@ -504,44 +508,55 @@ let volatileDataActivated = false;
 ReactStore.activateVolatileData = function() {
   dieIf(volatileDataActivated, 'EsE4PFY03');
   volatileDataActivated = true;
-  const data: VolatileDataFromServer = eds.volatileDataFromServer;
+  const volData: VolatileDataFromServer = eds.volatileDataFromServer;
 
-  // If we're in a comments iframe, and we're logged in — there's
-  // a sesison and a user in the session-iframe.html — then, use that
-  // user. This makes it possible to dynamically add new blog comments
-  // iframes, and they'll be aware about already being logged in,
-  // even if the browser refuses to send any session cookie to the server.
-  let sessWin: MainWin;
-  if (eds.isInIframe) try {
-    sessWin = getMainWin();
-    const sessStore: EmbSessionStore = sessWin.theStore;
-    if (_.isObject(sessStore.me)) {
-      if (!data.me || data.me.isStranger) {
-        data.me = _.cloneDeep(sessStore.me);  // [emb_ifr_shortcuts]
-      }
-      else {
-        data.me = me_merge(sessStore.me, data.me);  // [emb_ifr_shortcuts]
-        sessStore.me = data.me;
+  // Copy any session frame user to this frame's user:  [mny_ifr_pat_dta]
+  // If we're in a comments iframe, and we're logged in — there's a sesison
+  // and a user in the session-iframe.html — then, use that sesison and user.
+  // This makes it possible to dynamically add new blog comments iframes,
+  // and they'll be already-logged-in — works also if session cookies blocked.
+  let sessFrameStore: EmbSessionStore;
+  if (eds.isInIframe) {
+    try {
+      const sessFrame = getMainWin();
+      sessFrameStore = sessFrame.theStore;
+      if (_.isObject(sessFrameStore.me)) {
+        if (!volData.me || volData.me.isStranger) {
+          volData.me = _.cloneDeep(sessFrameStore.me);  // [emb_ifr_shortcuts]
+        }
+        else {
+          // @ifdef DEBUG
+          if (volData.me.id !== sessFrameStore.me.id) {
+            logW(`sessStore.me and volData.me race? Ids: ${sessFrameStore.me.id
+                } and ${volData.me.id}  [TyM0J2MW67]`);
+            debugger;
+          }
+          // @endif
+          volData.me = me_merge(sessFrameStore.me, volData.me);  // [emb_ifr_shortcuts]
+          sessFrameStore.me = _.cloneDeep(volData.me);
+        }
       }
     }
-  }
-  catch (ex) {
-    logW(`Multi iframe error? [TyEMANYIFR02]`, ex)
+    catch (ex) {
+      logW(`Multi iframe error? [TyEMANYIFR02]`, ex)
+    }
   }
 
-  theStore_setOnlineUsers(data.numStrangersOnline, data.usersOnline);
-  ReactStore.activateMyself(data.me);
+  theStore_setOnlineUsers(volData.numStrangersOnline, volData.usersOnline);
+  ReactStore.activateMyself(volData.me);
 
+  // Copy this frame's user to the session frame, if missing there:  [mny_ifr_pat_dta]
   // This is safe and cannot fail, still, try-catch for now, new code.
   // DO_AFTER 2022-01-01 remove try-catch, keep just the contents.
-  if (sessWin) try {
-    const sessStore: EmbSessionStore = sessWin.theStore;
-    if (!_.isObject(sessStore.me) && store.me) {  // [emb_ifr_shortcuts]
-      sessStore.me = _.cloneDeep(store.me);
+  if (sessFrameStore) {
+    try {
+      if (!_.isObject(sessFrameStore.me) && store.me) {  // [emb_ifr_shortcuts]
+        sessFrameStore.me = _.cloneDeep(store.me);
+      }
     }
-  }
-  catch (ex) {
-    logW(`Multi iframe error? [TyEMANYIFR03]`, ex)
+    catch (ex) {
+      logW(`Multi iframe error? [TyEMANYIFR03]`, ex)
+    }
   }
 
   store.quickUpdate = false;
@@ -721,7 +736,7 @@ function addMyDraftPosts(store: Store, myPageData: MyPageData) {
     _.each(myPageData.myDrafts, (draft: Draft) => {
       const draftType = draft.forWhat.draftType;
       if (draftType === DraftType.Reply || draftType === DraftType.ProgressPost) {
-        const post: Post | null = store_makePostForDraft(store, draft);
+        const post: Post | null = store_makePostForDraft(store.me.id, draft);
         if (post) {
           updatePost(post, store.currentPageId);
         }
@@ -1438,7 +1453,7 @@ function updateNotificationCounts(notf: Notification, add: boolean) {
 }
 
 
-function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly, instead of via Flux mess
+function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly, instead of via [flux_mess].
   if (isDefined2(storePatch.setEditorOpen) && storePatch.setEditorOpen !== store.isEditorOpen) {
     store.isEditorOpen = storePatch.setEditorOpen;
     store.editorsPageId = storePatch.setEditorOpen && storePatch.editorsPageId;
@@ -1465,12 +1480,13 @@ function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly
     // [redux] modifying the store in place, again.
     let patchedMe: Myself | U;
     if (eds.isInIframe) {
+      // Don't forget [data about pat] loaded by other frames.  [mny_ifr_pat_dta]
       try {
         const sessWin = getMainWin();
         const sessStore: EmbSessionStore = sessWin.theStore;
         if (_.isObject(sessStore.me)) {
-          patchedMe = me_merge(sessStore.me, store.me || {} as Myself, storePatch.me);  // [emb_ifr_shortcuts]
-          sessStore.me = patchedMe;
+          patchedMe = me_merge(sessStore.me, store.me, storePatch.me);  // [emb_ifr_shortcuts]
+          sessStore.me = _.cloneDeep(patchedMe);
         }
       }
       catch (ex) {
@@ -1595,7 +1611,9 @@ function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly
     _.each(store.pagesById, (oldPage: Page) => {
       _.each(patchedPosts, (patchedPost: Post) => {
         _.each(oldPage.postsByNr, (oldPost: Post) => {
-          if (oldPost.uniqueId === patchedPost.uniqueId) {  // oops old  = -1000101
+          // Oops, drafts and previews have ids like = -1000101, -1000102
+          // — but they are the *newest*, so, "old" in oldPost is then misleading.
+          if (oldPost.uniqueId === patchedPost.uniqueId) {
             const movedToNewPage = oldPage.pageId !== patchedPageId;
             const movedOnThisPage = !movedToNewPage && oldPost.parentNr !== patchedPost.parentNr;
             if (movedOnThisPage) {

@@ -940,13 +940,14 @@ class UserController @Inject()(cc: ControllerComponents, edContext: EdContext)
   }
 
 
-  def loadMyPageData(pageId: St): Action[U] = GetAction { request =>
-    /* Later, load data for many pages:  [many_ifr_my_page_data]
-    val pageIds: ImmSeq[PageId] =
-          if (pageId.indexOf(',') == -1) ImmSeq(pageId)
-          else pageId.split(',').to[ImmSeq] */
+  def loadMyPageData(pageIds: St): Action[U] = GetAction { request =>
+    COULD_OPTIMIZE // fewer requests
+    // Later, load data for many pages:  [many_ifr_my_page_data]
+    val pageIdsSeq: ImmSeq[PageId] =
+          if (pageIds.indexOf(',') == -1) ImmSeq(pageIds)
+          else pageIds.split(',').to[ImmSeq]
    // For now:
-    val json = loadMyPageDataImpl(request, pageId)
+    val json = loadMyPageDataImpl(request, pageIdsSeq.head)
     OkSafeJson(json)
   }
 

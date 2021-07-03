@@ -20,7 +20,7 @@
 /// <reference path="login/login-if-needed.ts" />
 
 // REFACTOR SMALLER_BUNDLE [4WG20ABG2] try to remove ReactActions? Move the fns to the store instead,
-// call directly? This ReactActions obj is just a pointless indirection.
+// call directly? This ReactActions obj is just a pointless indirection. [flux_mess]
 // Also, remove the EventEmitter. I can write my own in 10 lines. The EventEmitter
 // has 99% things that aren't needed in Talkyard's case. It just makes the slim-bundle larger.
 
@@ -143,14 +143,13 @@ export function logout() {
 
 
 export function logoutClientSideOnly(ps: { goTo?: St, skipSend?: Bo } = {}) {
-//export function logoutClientSideOnly(skipSend?: 'SkipSend') {  ?
   Server.deleteTempSessId();
 
   ReactDispatcher.handleViewAction({
     actionType: actionTypes.Logout
   });
 
-  if (eds.isInEmbeddedCommentsIframe && !ps.skipSend) { // !== 'SkipSend') {
+  if (eds.isInEmbeddedCommentsIframe && !ps.skipSend) {
     // Tell the editor iframe that we've logged out.
     // And maybe we'll redirect the embedd*ing* window.  [sso_redir_par_win]
     sendToOtherIframes(['logoutClientSideOnly', ps]);
@@ -159,7 +158,7 @@ export function logoutClientSideOnly(ps: { goTo?: St, skipSend?: Bo } = {}) {
     patchTheStore({ setEditorOpen: false });
     const sessWin: MainWin = getMainWin();
     delete sessWin.typs.weakSessionId;
-    sessWin.theStore.me = 'TyMSGDOUT' as any;
+    sessWin.theStore.me = 'TyMLOGDOUT' as any;
   }
 
   // Disconnect WebSocket so we won't receive data, for this user, after we've
@@ -417,8 +416,8 @@ export function changePostType(post: Post, newType: PostType, onDone: () => void
 export function vote(storePatch: StorePatch, doWhat: 'DeleteVote' | 'CreateVote',
         voteType: St, postNr: PostNr) {
   ReactDispatcher.handleViewAction({
-    storePatch,
     actionType: actionTypes.VoteOnPost,
+    storePatch,
     doWhat,
     voteType,
     postNr,
@@ -1182,7 +1181,10 @@ export function hideEditorAndPreview(ps?: HideEditorAndPreviewParams, inWhichFra
   const isChat = page && page_isChat(page.pageRole);
 
   // If' we've navigated to a different page, then, any preview is gone already.
-  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId; // hm updated alreayd if 1st reply, lazy page?
+  const isOtherPage = ps.editorsPageId && ps.editorsPageId !== store.currentPageId;
+  // editorsPageId  has been updated already, if was typing the first reply
+  // on a new now lazy-created page [4HKW28] — then, !isOtherPage, so below,
+  // we'll pick the remove-preview if branch [.rm_prv_if_br].
 
   // A bit dupl debug checks (49307558).
   // @ifdef DEBUG
@@ -1200,11 +1202,11 @@ export function hideEditorAndPreview(ps?: HideEditorAndPreviewParams, inWhichFra
   }
   else if (ps.keepPreview) {
     // This happens if we're editing a chat message in the advanced editor — we can
-    // continue typing in the cat message text box, and keep the preview.
+    // continue typing in the chat message text box, and keep the preview.
   }
   else if (ps.editingPostNr) {
-    // Put back the original post, the one before the edits. If saving, then,
-    // once the serve has replied, we'll insert the new updated post instead.  Or...? [359264FKUGP]
+    // Put back the post as it was before the edits. If we submitted the edits, then,
+    // once the serve has replied, we'll insert the new updated post instead.  Or...?
     if (origPostBeforeEdits) {
       // @ifdef DEBUG
       dieIf(ps.editingPostNr !== origPostBeforeEdits.nr,
@@ -1217,7 +1219,7 @@ export function hideEditorAndPreview(ps?: HideEditorAndPreviewParams, inWhichFra
       origPostBeforeEdits = null;
     }
   }
-  else if (ps.replyToNr || isChat) {
+  else if (ps.replyToNr || isChat) {   // [.rm_prv_if_br]
     const postType = ps.anyPostType || PostType.ChatMessage;
     patch = ps.anyDraft && ps.keepDraft
         ? store_makeDraftPostPatch(store, page, ps.anyDraft)
@@ -1272,9 +1274,9 @@ export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boole
   }
   let draftPost: Post | U;
   if (deleteDraftPost) {
-    const store: EmbSessionStore = getMainWinStore();  // only author id used  [042MSED3M]
-        // ... so works fine, also if from the wrong iframe. Bit messy, should clean up.
-    draftPost = store_makePostForDraft(store, draft);  // [60MNW53]
+    // Maybe pass one's id in a parram instead?
+    const store: EmbSessionStore = getMainWinStore();
+    draftPost = store_makePostForDraft(store.me.id, draft);  // [60MNW53]
   }
   deleteDraftImpl(draftPost, draftDeletor, onDoneOrBeacon, onError);
 }
@@ -1575,7 +1577,7 @@ function sendToCommentsIframe(message, toWhichFrame?) {
 }
 
 
-function sendToParent(message, toEditor?: Bo, toWhichFrame?: Window) {
+function sendToParent(message) {
   sendToIframesImpl(message, false, parent);
 }
 
@@ -1588,16 +1590,17 @@ function sendToIframesImpl(message, toEditor?: Bo, toWhichFrame?: Window) {
     try {
       const sendDirectly = toWhichFrame || toEditor; //  &&  feature flag
       const win = sendDirectly ? toWhichFrame || win_getEditorWin() : window.parent;
-      // (The parent win is the embedding page, e.g. a blog post page,
-      // with origin eds.embeddingOrigin.)
-      const targetOrigin = sendDirectly && toWhichFrame !== parent ?
-              location.origin : eds.embeddingOrigin;
+      // Which origin? 1) The parent win is the embedding page, e.g. a blog post page,
+      // with origin eds.embeddingOrigin. 2) If not posting to the parent win,
+      // we're posting to another Talkyard iframe on the same server (same origin).
+      const targetOrigin = !sendDirectly || toWhichFrame === parent ?
+              eds.embeddingOrigin : location.origin;
       win.postMessage(JSON.stringify(message), targetOrigin);
     }
     catch (ex) {
       // Don't propagate this. Probably better to let the current frame continue
       // as best it can with whatever it's doing.
-      console.error(`Error messaging editor [TyEPSTPRNT]`, ex);
+      logW(`Error posting to other frame [TyEPSTPRNT]`, ex);
     }
   }
 }

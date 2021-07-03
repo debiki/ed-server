@@ -101,26 +101,25 @@ class VoteController @Inject()(cc: ControllerComponents, edContext: EdContext)
           request)
 
     if (delete) {
-      dao.deleteVote(pageId, postNr, voteType, voterId = request.theUser.id)
+      dao.deleteVoteIfAuZ(pageId, postNr, voteType, voterId = request.theUser.id)
     }
     else {
-      dao.ifAuthAddVote(pageId, postNr, voteType,
-        voterId = request.theUser.id, voterIp = request.ip, postNrsRead)
+      dao.addVoteIfAuZ(pageId, postNr, voteType,
+            voterId = request.theUser.id, voterIp = request.ip, postNrsRead)
     }
 
+    RACE // Fine, harmless.
     val updatedPost = dao.loadPost(pageId, postNr) getOrThrowForbidden(
-          "TyE7M3MRSED5", "No such post")
+          "TyE7M3MRSED5", "The post just got hard deleted?")
 
     val author = dao.getParticipantOrUnknown(updatedPost.createdById)
 
-    //val postJson = dao.jsonMaker.postToJson2(postNr = postNr, pageId = pageId,
-    //  includeUnapproved = false, showHidden = true)
-
-    val storePatchJson = dao.jsonMaker.makeStorePatch(updatedPost, author, showHidden = true)
+    val storePatchJson = dao.jsonMaker.makeStorePatch(
+          updatedPost, author, showHidden = true)
 
     val responseJson = storePatchJson ++
           EmbeddedCommentsPageCreator.makeAnyNewPageJson(newEmbPage)
-        // ("updatedPost" -> postJson)
+
     OkSafeJson(responseJson)
   }
 
