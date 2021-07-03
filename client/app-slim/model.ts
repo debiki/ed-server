@@ -902,7 +902,7 @@ interface Origins {
 }
 
 
-interface EmbSessionStore {
+interface EmbSessionStore {  // REN to EmbSessStore
   me?: Myself;
   embeddedOriginOrEmpty: St;
 }

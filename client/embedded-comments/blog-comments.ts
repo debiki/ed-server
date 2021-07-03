@@ -746,7 +746,7 @@ function onMessage(event) {
       throw Error(`Unexpected message from session iframe: ${eventName}  TyE4MREJ36`);
     // @endif
     sessionIframeInited = true;
-    createEditorIframe();
+    createEditorIframe();  // [ed_ifr_1st]
     return;
   }
 
@@ -781,7 +781,7 @@ function onMessage(event) {
       iframesInited[iframeNr] = true;
 
       if (isFromEditorIframe) {
-        loadFirstCommentsIframe();
+        loadFirstCommentsIframe();  // [ed_ifr_1st]
         return;
       }
 

@@ -293,19 +293,20 @@ export function getMainWin(): MainWin {  // QUICK RENAME to win_getSessFrame() ?
 
   if (window.name === lookingForName) {
     // @ifdef DEBUG
-    dieIf(!window['typs'], 'TyE7S2063D');
+    dieIf(!(window as MainWin).typs, 'TyE7S2063D');
     // @endif
     return <MainWin> window;
   }
 
-  // This is the main window already, unless we're on an embedded comments page or in a login popup.
+  // This is the main window already, unless we're on an embedded comments page
+  // or in a login popup.
   let win = window;
 
   // If we're in a login popup window, switch to the opener, which should be either the
-  // main win (with all comments and discussions), or the embedded editor 'edEditor' in an iframe.
+  // main win (with comments and discussions), or the embedded editor 'edEditor' iframe.
   try {
-    if (win.opener && win.opener.typs) {
-      win = win.opener;
+    if (win.opener && (win.opener as MainWin).typs) {
+      win = win.opener as MainWin;
     }
   }
   catch (ignored) {
@@ -320,24 +321,22 @@ export function getMainWin(): MainWin {  // QUICK RENAME to win_getSessFrame() ?
     // @ifdef DEBUG
     dieIf(win.name !== 'edEditor' && !/edComments-[0-9]+/.test(win.name),
           `This window has an unexpected name: '${win.name}' TyE7S2RME75`);
-    // @endif
-    // The parent window is the embedding window,
-    // e.g. a blog post with comments embedded. And it should have another child window, namely
-    // the main window, with all embedded comments.
-    // @ifdef DEBUG
+    // The parent window is the embedding window, e.g. a blog post with
+    // comments embedded. It can have one or many iframes with embedded comments.
     dieIf(!win.parent, 'TyE7KKWGCE2');
     // @endif
     try {
       win = win.parent[lookingForName];
     }
     catch (ex) {
-      // Maybe got deleted by scripts on the embedding page? Then what
+      // Maybe got deleted by scripts on the embedding page? Then what?
       logW(`Main win '${lookingForName}' not found [TyE0MAINWIN]`);
     }
   }
 
   // @ifdef DEBUG
-  dieIf(!win['typs'], 'TyE5KTGW0256');
+  dieIf(!win, 'TyE5KTGW0258');
+  dieIf(!(win as MainWin).typs, 'TyE5KTGW0256');
   // @endif
 
   return <MainWin> win;
@@ -348,10 +347,12 @@ export function win_getEditorWin(): MainWin | U {
   if (window.name === 'edEditor') {
     return window as MainWin;
   }
-  // Any editor iframe might not yet have been loaded, so this might be undefined?
+  // The editor iframe is created first, so this should always work. [ed_ifr_1st]
   let win;
   try { win = window.parent['edEditor']; }
-  catch (ignored) {}
+  catch (ignored) {
+    logW(`Editor iframe 'edEditor' not found [TyE0EDWIN]`);
+  }
   return win;
 }
 

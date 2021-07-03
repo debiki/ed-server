@@ -590,7 +590,7 @@ function runAllE2eTests {
 
   $r s/wdio       --only embedded-comments-different-disc-ids-same-page $args
   $r s/wdio       --only embcom.many-comment-iframes-same-page.2br $args
-  #r s/wdio       --only embcom.many-comment-iframes-click-load-more.2br $args
+  #r s/wdio       --only embcom.many-comment-iframes-click-load-more.2br $args -
   $r s/wdio       --only embedded-comments-discussion-id.test $args
   $r s/wdio       --only embedded-comments-discussion-id-old-name $args
 

@@ -594,13 +594,19 @@ export function me_merge(me1: Myself, me2: Partial<Myself> | U,
   return me;
 }
 
-
+let funny = true;
 function me_mergeImpl(me1: Partial<Myself>, me2: Partial<Myself>): Myself {
   const me = { ...me1, ...me2 };
   me.myDataByPageId = { ...me1.myDataByPageId, ...me2.myDataByPageId };
   me.marksByPostId = { ...me1.marksByPostId, ...me2.marksByPostId };
-//export function pageNotfPrefs_copyWithUpdatedPref(
- //    prefs: PageNotfPref[], newNotfPref: PageNotfPref): PageNotfPref[] {
+  let mergedPrefs: PageNotfPref[] = me.myCatsTagsSiteNotfPrefs;
+  if (funny) { // TEST
+    debugger;
+  }
+  for (const pref2 of me2.myCatsTagsSiteNotfPrefs) {
+    mergedPrefs = pageNotfPrefs_copyWithUpdatedPref(mergedPrefs, pref2);
+  }
+  me.myCatsTagsSiteNotfPrefs = mergedPrefs;
   return me as Myself;
 }
 
@@ -1176,7 +1182,7 @@ export function post_makePreviewIdNr(parentNr: PostNr, newPostType: PostType): P
 
 
 interface MakePreviewParams {
-  authorId: PatId; // store: EmbSessionStore;
+  authorId: PatId;
   parentPostNr?: PostNr;
   safePreviewHtml?: string;
   unsafeSource?: string;
@@ -1189,8 +1195,7 @@ interface MakePreviewParams {
 
 
 function store_makePreviewPost({
-    authorId,
-    parentPostNr, safePreviewHtml, unsafeSource,
+    authorId, parentPostNr, safePreviewHtml, unsafeSource,
     newPostType, isForDraftNr, isEditing }: MakePreviewParams): Post {
 
   dieIf(!newPostType, "Don't use for edit previews [TyE4903KS]");
@@ -1209,7 +1214,7 @@ function store_makePreviewPost({
     parentNr: parentPostNr,
     multireplyPostNrs: [], //PostNr[];
     postType: newPostType,
-    authorId: authorId, // store.me.id,
+    authorId: authorId,
     createdAtMs: now,
     //approvedAtMs?: number;
     //lastApprovedEditAtMs: number;

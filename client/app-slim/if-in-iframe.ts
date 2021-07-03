@@ -60,9 +60,9 @@ function onMessage(event) {
     return;
   }
 
-  // We can access other Ty frames  [many_embcom_iframes], but if the sener is
+  // We can access other Ty frames  [many_embcom_iframes], but if the sender is
   // window.parent, we cannot access it — then, set to undefined.
-  const inWhichFrame = isFromOtherIframe ? event.source : undefined;
+  const fromIframe = isFromOtherIframe ? event.source : undefined;
 
   switch (eventName) {
     case 'loginWithAuthnToken':
@@ -148,7 +148,7 @@ function onMessage(event) {
       var postNr = eventData[0];
       var inclInReply = eventData[1];
       var postType = eventData[2] ?? PostType.Normal;
-      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, inWhichFrame);
+      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, fromIframe);
       break;
     case 'handleReplyResult':
       // This message is sent from the embedded editor <iframe> to the comments
@@ -160,7 +160,7 @@ function onMessage(event) {
     case 'editorEditPost':
       // Sent from an embedded comments page to the embedded editor.
       var postNr = eventData;
-      ReactActions.editPostWithNr(postNr, inWhichFrame);
+      ReactActions.editPostWithNr(postNr, fromIframe);
       break;
     case 'onEditorOpen':
       // Sent from the embedded editor to the comments iframe.
