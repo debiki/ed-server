@@ -1260,14 +1260,14 @@ export function deleteDraftPost(pageId: PageId, draftPost: Post) {
     draftNr,
     forWhat: draftLocator,
   };
-  deleteDraftImpl(draftPost, draftDeletor);
+  deleteDraftImpl(draftPost, draftDeletor, undefined, undefined, window as DiscWin);
 }
 
 
 /// Deletes the draft, and optionally any draft post too.
 ///
 export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boolean,
-      onDoneOrBeacon?: OnDoneOrBeacon, onError?: ErrorStatusHandler) {
+      onDoneOrBeacon?: OnDoneOrBeacon, onError?: ErrorStatusHandler, forFrame?: DiscWin) {
 
   // What about category id, for new topics?  [DRAFTS_BUG]
   const draftDeletor: DraftDeletor = {
@@ -1281,12 +1281,12 @@ export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boole
     const store: SessWinStore = win_getSessWinStore();
     draftPost = store_makePostForDraft(store.me.id, draft);  // [60MNW53]
   }
-  deleteDraftImpl(draftPost, draftDeletor, onDoneOrBeacon, onError);
+  deleteDraftImpl(draftPost, draftDeletor, onDoneOrBeacon, onError, forFrame);
 }
 
 
 function deleteDraftImpl(draftPost: Post | U, draftDeletor: DraftDeletor,
-      onDoneOrBeacon?: OnDoneOrBeacon, onError?: ErrorStatusHandler) {
+      onDoneOrBeacon?: OnDoneOrBeacon, onError?: ErrorStatusHandler, forFrame?: DiscWin) {
 
   // ----- Delete from browser storage
 
@@ -1294,8 +1294,12 @@ function deleteDraftImpl(draftPost: Post | U, draftDeletor: DraftDeletor,
   // were included in the storage key, when saving the draft. So look at all
   // browser storage drafts.
   BrowserStorage.forEachDraft(draftDeletor.pageId, (draft: Draft, keyStr: string) => {
+    const noOrSameDraftDiscId =  // [draft_diid]
+        !draft.forWhat.discussionId ||
+            draft.forWhat.discussionId === draftDeletor.forWhat.discussionId;
     if (draft.forWhat.postNr === draftDeletor.forWhat.postNr &&
-        draft.forWhat.draftType === draftDeletor.forWhat.draftType) {
+        draft.forWhat.draftType === draftDeletor.forWhat.draftType &&
+        noOrSameDraftDiscId) {
       BrowserStorage.remove(keyStr);
     }
   });
@@ -1319,7 +1323,9 @@ function deleteDraftImpl(draftPost: Post | U, draftDeletor: DraftDeletor,
   const draftNr: DraftNr | U = draftDeletor.draftNr;
   if (!draftNr) {
     // This draft existed locally only, in the browse's storage.
-    patchTheStoreAllIframes(storePatch, onDone);
+    patchTheStoreManyFrames(storePatch, onDone,
+          // Delete it from the correct iframe only. [draft_diid]
+          forFrame);
   }
   else if (_.isNumber(draftNr)) {
     if (onDoneOrBeacon === UseBeacon) {
@@ -1328,7 +1334,7 @@ function deleteDraftImpl(draftPost: Post | U, draftDeletor: DraftDeletor,
     }
     else {
       Server.deleteDrafts([draftNr], function() {
-        patchTheStoreAllIframes(storePatch, onDone);
+        patchTheStoreManyFrames(storePatch, onDone, forFrame);
       }, onError);
     }
   }
@@ -1389,9 +1395,15 @@ export function handleReplyResult(patch: StorePatch, draftToDelete: Draft | unde
 }
 
 
-function patchTheStoreAllIframes(storePatch: StorePatch, onDone?: () => void) {
-  patchTheStore(storePatch, onDone);
-  sendToOtherIframes(['patchTheStore', storePatch]);
+function patchTheStoreManyFrames(storePatch: StorePatch, onOk?: () => Vo,
+          forFrame?: DiscWin) {
+  patchTheStore(storePatch, onOk);
+  if (forFrame === window) {
+    // Just patched.
+  }
+  else {
+    sendToCommentsIframe(['patchTheStore', storePatch], forFrame);
+  }
 }
 
 

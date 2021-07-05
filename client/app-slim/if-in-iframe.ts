@@ -42,8 +42,8 @@ export function startIframeMessages() {
 
 
 function onMessage(event) {
-  const isFromOtherIframe = event.origin === location.origin;
-  if (event.origin !== eds.embeddingOrigin && !isFromOtherIframe)
+  const isFromOtherFrame = event.origin === location.origin;
+  if (event.origin !== eds.embeddingOrigin && !isFromOtherFrame)
     return;
 
   // The message is a "[eventName, eventData]" string because IE <= 9 doesn't support
@@ -62,7 +62,7 @@ function onMessage(event) {
 
   // We can access other Ty frames  [many_embcom_iframes], but if the sender is
   // window.parent, we cannot access it — then, set to undefined.
-  const fromIframe = isFromOtherIframe ? event.source : undefined;
+  const fromFrame = isFromOtherFrame ? event.source : undefined;
 
   switch (eventName) {
     case 'loginWithAuthnToken':
@@ -148,7 +148,7 @@ function onMessage(event) {
       var postNr = eventData[0];
       var inclInReply = eventData[1];
       var postType = eventData[2] ?? PostType.Normal;
-      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, fromIframe);
+      editor.toggleWriteReplyToPostNr(postNr, inclInReply, postType, fromFrame);
       break;
     case 'handleReplyResult':
       // This message is sent from the embedded editor <iframe> to the comments
@@ -160,7 +160,7 @@ function onMessage(event) {
     case 'editorEditPost':
       // Sent from an embedded comments page to the embedded editor.
       var postNr = eventData;
-      ReactActions.editPostWithNr(postNr, fromIframe);
+      ReactActions.editPostWithNr(postNr, fromFrame);
       break;
     case 'onEditorOpen':
       // Sent from the embedded editor to the comments iframes.

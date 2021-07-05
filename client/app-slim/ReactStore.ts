@@ -732,6 +732,8 @@ ReactStore.allData = function(): Store {
 // message text input box. [CHATPRVW]
 //
 function addMyDraftPosts(store: Store, myPageData: MyPageData) {
+  // Some drafts are saved server side, others just in the browser — the latter ones
+  // get loaded here: addLocalStorageDataTo().
   if (!eds.isInEmbeddedEditor && !page_isChat(store.currentPage?.pageRole)) {
     _.each(myPageData.myDrafts, (draft: Draft) => {
       const draftType = draft.forWhat.draftType;
@@ -1966,11 +1968,22 @@ function addLocalStorageDataTo(me: Myself) {
   //
   // Any drafts in the browser's storage?
   if (!eds.isInEmbeddedEditor) {
+    // BUG minor: COULD also load embedded comments drafts whose pageId is NoPageId,
+    // if their url or discussion id match. They might have been saved in the browser,
+    // before an embedded discussion page had been created.
+
     BrowserStorage.forEachDraft(store.currentPageId, (draft: Draft) => {
       // BUG, harmless: Skip drafts that got loaded from the server already,
       // so browser storage drafts won't overwrite them (until the editor gets opened
       // and the real draft text gets loaded from the server).
-      me.myCurrentPageData.myDrafts.push(draft);
+      const draftDiscId = draft.forWhat.discussionId;
+      if (draftDiscId && draftDiscId !== eds.embeddedPageAltId) {
+        // This is for an embedded discussion, not the same as the discussion
+        // we're in now. [draft_diid]
+      }
+      else {
+        me.myCurrentPageData.myDrafts.push(draft);
+      }
     });
   }
 

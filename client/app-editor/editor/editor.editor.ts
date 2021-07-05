@@ -479,9 +479,10 @@ export const Editor = createFactory<any, EditorState>({
       die(t.e.UploadMaxOneFile + " [TyM5JYW2]");  // INFO_LOG
     }
 
+    const state: EditorState = this.state;
+
     for (let file of files) {
-      const store: Store = this.state.store;
-      const me: Myself = store.me;  // or use forFrameStore?
+      const me: Myself = (state.forFrameStore || state.store).me;
 
       // '**' can mean all allowed, for backw compat with old sites
       // that don't expect any upload file type restrictions.
@@ -833,7 +834,7 @@ export const Editor = createFactory<any, EditorState>({
       draftLocator.embeddingUrl = eds.embeddingUrl;
     }
     if (eds.embeddedPageAltId) {
-      draftLocator.discussionId = eds.embeddedPageAltId;
+      draftLocator.discussionId = eds.embeddedPageAltId;  // [draft_diid]
     }
 
 
@@ -904,6 +905,10 @@ export const Editor = createFactory<any, EditorState>({
 
     const state: EditorState = this.state;
     const store: Store = state.store;
+    // This cannot happen in an embedded editor, currently.
+    // @ifdef DEBUG
+    dieIf(state.forFrameStore, 'TyE502MHEARI0-1');
+    // @endif
 
     let category: Category | U;
     let categoryId: CategoryId | U;
@@ -960,7 +965,13 @@ export const Editor = createFactory<any, EditorState>({
     if (this.alertBadState())
       return;
 
-    const store: Store = this.state.store;
+    const state: EditorState = this.state;
+    const store: Store = state.store;
+    // This cannot happen in an embedded editor, currently.
+    // @ifdef DEBUG
+    dieIf(state.forFrameStore, 'TyE502MHEARI0-2');
+    // @endif
+
     const newState: Partial<EditorState> = {
       editorsCategories: store.currentCategories,
       editorsPageId: store.currentPageId,
@@ -978,7 +989,12 @@ export const Editor = createFactory<any, EditorState>({
   openToWriteMessage: function(userId: UserId) {
     if (this.alertBadState())
       return;
-    const store: Store = this.state.store;
+    const state: EditorState = this.state;
+    const store: Store = state.store;
+    // This cannot happen in an embedded editor, currently.
+    // @ifdef DEBUG
+    dieIf(state.forFrameStore, 'TyE502MHEARI0-3');
+    // @endif
     const newState: Partial<EditorState> = {
       editorsCategories: store.currentCategories,
       // The current page doens't matter, when creating a new page. [DRAFTS_BUG] set to undefined
@@ -1065,7 +1081,7 @@ export const Editor = createFactory<any, EditorState>({
 
     const setDraftAndGuidelines = (anyDraft?, anyGuidelines?) => {
       let draft = anyDraft || BrowserStorage.get(draftLocator);
-      // Also try without any  pageId  or discussionId,
+      // Also try without any  pageId  or discussionId,  [draft_diid]
       // in case pat started writing, before a page had been created,
       // or before there was a discussion id (maybe the site admin added later).
       if (!draft) {
@@ -1073,16 +1089,20 @@ export const Editor = createFactory<any, EditorState>({
         const hasPageId = !isNoPage(draftLocator.pageId);
         // UX, minor: Could find all 3 drafts (if any) and pick the most recent one?
         if (hasDiscId) {
+          // Lookup by url path or page id, matching any discussion id.
+          // (Or maybe dont'?)
           const loc2 = { ... draftLocator };
           delete loc2.discussionId;
           draft = BrowserStorage.get(loc2);
         }
         if (!draft && hasPageId) {
+          // Lookup by url path or discussion id, matching any page id.
           const loc2 = { ... draftLocator };
           delete loc2.pageId;
           draft = BrowserStorage.get(loc2);
         }
         if (!draft && hasDiscId && hasPageId) {
+          // Lookup by url path, matching any discussion id and any page id.
           const loc2 = { ... draftLocator };
           delete loc2.discussionId;
           delete loc2.pageId;
@@ -1323,6 +1343,11 @@ export const Editor = createFactory<any, EditorState>({
 
     const state: EditorState = this.state;
     const store: Store = state.store;
+    // This cannot happen in an embedded editor, currently.
+    // @ifdef DEBUG
+    dieIf(state.forFrameStore, 'TyE502MHEARI0-4');
+    // @endif
+
     const settings: SettingsVisibleClientSide = store.settings;
     if (settings.enableSimilarTopics === false)
       return;
@@ -1470,6 +1495,9 @@ export const Editor = createFactory<any, EditorState>({
       if (eds.embeddingUrl) {
         locator.embeddingUrl = eds.embeddingUrl;
       }
+      if (eds.embeddedPageAltId) {
+        locator.discussionId = eds.embeddedPageAltId;  // [draft_diid]
+      }
     }
     else if (state.isWritingChatMessage) {
       locator.draftType = DraftType.Reply;
@@ -1585,7 +1613,7 @@ export const Editor = createFactory<any, EditorState>({
             draft: null,
             draftStatus: DraftStatus.Deleted,
           });
-        }), useBeacon || this.setCannotSaveDraft);
+        }), useBeacon || this.setCannotSaveDraft, state.forFrame);
       }
       if (callbackThatClosesEditor) {
         callbackThatClosesEditor();
@@ -1593,7 +1621,7 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const store: Store = state.store;  // or  forFrameStore?
+    const me: Myself = (state.forFrameStore || state.store).me;
     const draftToSave: Draft = { ...draftOldOrEmpty, text, title };
 
     // If this is an embedded comments discussion, and the discussion page hasn't
@@ -1601,8 +1629,7 @@ export const Editor = createFactory<any, EditorState>({
     // save the draft in the browser storage only, for now.
     // UX COULD save server side, with url as key  [BLGCMNT1]
     // — it's the key already, in the sesison cache.
-    const saveInBrowser =
-        !store.me.isLoggedIn || isEmbeddedNotYetCreatedPage(state);
+    const saveInBrowser = !me.isLoggedIn || isEmbeddedNotYetCreatedPage(state);
 
     logD(`Saving draft: ${JSON.stringify(draftToSave)}, ` + (
         saveInBrowser ? "temp in browser" : "server side"));
@@ -1872,7 +1899,9 @@ export const Editor = createFactory<any, EditorState>({
     if (!ps.keepDraft && anyDraft) {
       const deleteDraftPost = true;
       // What about  state.newForumTopicCategoryId, for new topics?  [DRAFTS_BUG]
-      ReactActions.deleteDraft(state.editorsPageId, anyDraft, deleteDraftPost);
+      ReactActions.deleteDraft(
+            state.editorsPageId, anyDraft, deleteDraftPost,
+            undefined, undefined, state.forFrame);
     }
 
     const params: HideEditorAndPreviewParams = {
