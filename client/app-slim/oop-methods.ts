@@ -585,6 +585,8 @@ export function post_isPubVisible(post: Post): Bo {
 //----------------------------------
 
 
+/// Me2 has precedence over me1, and me3 over me2.
+///
 export function me_merge(me1: Myself, me2: Partial<Myself> | U,
         me3?: Partial<Myself>): Myself {
   let me = me_mergeImpl(me1, me2 || {});
@@ -594,19 +596,11 @@ export function me_merge(me1: Myself, me2: Partial<Myself> | U,
   return me;
 }
 
-let funny = true;
+
 function me_mergeImpl(me1: Partial<Myself>, me2: Partial<Myself>): Myself {
   const me = { ...me1, ...me2 };
   me.myDataByPageId = { ...me1.myDataByPageId, ...me2.myDataByPageId };
   me.marksByPostId = { ...me1.marksByPostId, ...me2.marksByPostId };
-  let mergedPrefs: PageNotfPref[] = me.myCatsTagsSiteNotfPrefs;
-  if (funny) { // TEST
-    debugger;
-  }
-  for (const pref2 of me2.myCatsTagsSiteNotfPrefs) {
-    mergedPrefs = pageNotfPrefs_copyWithUpdatedPref(mergedPrefs, pref2);
-  }
-  me.myCatsTagsSiteNotfPrefs = mergedPrefs;
   return me as Myself;
 }
 
@@ -1066,7 +1060,8 @@ export function store_findCatsWhereIMayCreateTopics(store: Store): Category[] {
 }
 
 
-export function store_getPostId(store: Store, pageId: PageId, postNr: PostNr): PostId | U {
+export function store_getPostId(store: OneDiscStore, pageId: PageId,
+        postNr: PostNr): PostId | U {
   // If we're on a blog bost with embedded comments, then, the Talkyard embedded
   // comments page might not yet have been created.
   if (isNoPage(pageId))

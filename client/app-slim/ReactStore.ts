@@ -45,7 +45,7 @@ const htmlElem = document.getElementsByTagName('html')[0];
 declare const EventEmitter3; // don't know why, but the TypeScript defs doesn't work.
 export const ReactStore = new EventEmitter3();
 
-export function getMainWinStore(): EmbSessionStore {  // RENAME QUICK to win_getSessFrameStore()
+export function win_getSessWinStore(): SessWinStore {
   const mainWin = getMainWin();
   return mainWin.theStore;
 }
@@ -515,7 +515,7 @@ ReactStore.activateVolatileData = function() {
   // and a user in the session-iframe.html — then, use that sesison and user.
   // This makes it possible to dynamically add new blog comments iframes,
   // and they'll be already-logged-in — works also if session cookies blocked.
-  let sessFrameStore: EmbSessionStore;
+  let sessFrameStore: SessWinStore;
   if (eds.isInIframe) {
     try {
       const sessFrame = getMainWin();
@@ -1483,7 +1483,7 @@ function patchTheStore(storePatch: StorePatch) {  // REFACTOR just call directly
       // Don't forget [data about pat] loaded by other frames.  [mny_ifr_pat_dta]
       try {
         const sessWin = getMainWin();
-        const sessStore: EmbSessionStore = sessWin.theStore;
+        const sessStore: SessWinStore = sessWin.theStore;
         if (_.isObject(sessStore.me)) {
           patchedMe = me_merge(sessStore.me, store.me, storePatch.me);  // [emb_ifr_shortcuts]
           sessStore.me = _.cloneDeep(patchedMe);

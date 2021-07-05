@@ -20,7 +20,7 @@
 //------------------------------------------------------------------------------
    namespace debiki2.editor {
 //------------------------------------------------------------------------------
-// CR_MISSING
+// CR_MISSING mostly
 
 const d = { i: debiki.internal };
 const r = ReactDOMFactories;
@@ -115,7 +115,7 @@ export const listUsernamesTrigger = {
 interface EditorState {
   inWhichFrame?: MainWin,
   store: Store;
-  embMainStoreCopy?: Partial<Store>;
+  embMainStoreCopy?: OneDiscStore;
   visible: boolean;
   replyToPostNrs: PostNr[];
   anyPostType?: PostType;
@@ -187,18 +187,63 @@ export const Editor = createFactory<any, EditorState>({
     };
   },
 
-  getMainStore(inWhichFrame?: MainWin): Store {
-    /*
+
+  /// This is part of making the embedded editor work with many comment iframes
+  /// at the same time. We clone the relevant discussion data, from the
+  /// relevant embedded comments iframe. — If we're not in embedded iframes,
+  /// we just return the store as is (we're in the main window already).
+  ///
+  getDiscStore(inWhichFrame?: MainWin): OneDiscStore {
+    if (!eds.isInIframe) {
+      // @ifdef DEBUG
+      dieIf(inWhichFrame, 'TyE507MWEG25')
+      // @endif
+      return debiki2.ReactStore.allData();
+    }
+
     // @ifdef DEBUG
-    // Later: Replace  getMainWinStore() below with just ReactStore.allData()?
-    dieIf(eds.isInIframe && !inWhichFrame && !this.state.inWhichFrame, 'TyE604RMJ46');
+    //dieIf(!inWhichFrame && !this.state.inWhichFrame, 'TyE604RMJ46');
     // @endif
-    */
+
     // If this.state hasn't yet been updated, we'll use the inWhichFrame param.
-    return inWhichFrame?.theStore || (    // [ONESTORE]  [many_embcom_iframes]
+    const discOrSessStore: Partial<OneDiscStore> =
+        inWhichFrame?.theStore || (    // [ONESTORE]  [many_embcom_iframes]
               this.state.inWhichFrame ?
-                  this.state.inWhichFrame.theStore : getMainWinStore());
+                  this.state.inWhichFrame.theStore : win_getSessWinStore());
+
+    // The store is from another iframe — clone it. And if it's from the session
+    // iframe, add empty maps and lists for users and pages and posts (this
+    // would be weird, but maybe can happen if buggy javascript on the embedd*ing*
+    // page deletes a comments iframe. Then it's nice if Talkyard continues
+    // working as best it can without showing errors?).
+    //
+    // Why clone? So as not to 1) hold on to data from another frame and thereby
+    // maybe preventing data in that other frame from being freed. Maybe not needed,
+    // since this aren't html tags, just variables, but let's clone just in case.
+    // And 2) so that not getting it changed "at any time" by the other iframe
+    // — React.js wouldn't like that.
+    //
+    const s = discOrSessStore;
+    const discStore: OneDiscStore = {
+      me: s.me,
+      embeddedOriginOrEmpty: s.embeddedOriginOrEmpty,
+      currentPage: _.cloneDeep(s.currentPage),
+      currentPageId: s.currentPageId,
+      currentCategories: _.cloneDeep(s.currentCategories),
+      usersByIdBrief: _.cloneDeep(s.usersByIdBrief || {}),
+      pagesById: {},
+    };
+    if (discStore.currentPage) {
+      // @ifdef DEBUG
+      dieIf(discStore.currentPage.pageId !== discStore.currentPageId, 'TyE507MWEG27')
+      // @endif
+      // We show the embedded editor for one discussion at a time, so we
+      // need only the current page.
+      discStore.pagesById[discStore.currentPageId] = discStore.currentPage;
+    }
+    return discStore;
   },
+
 
   onChange: function() {
     this.setState({ store: debiki2.ReactStore.allData() });
@@ -627,12 +672,12 @@ export const Editor = createFactory<any, EditorState>({
 
 
   toggleWriteReplyToPostNr: function(postNr: PostNr, inclInReply: Bo,
-        anyPostType?: PostType, inWhichFrame?: MainWin) {
+        anyPostType?: PostType, inDiscWin?: DiscWin) {
     if (this.alertBadState('WriteReply'))
       return;
 
     const state: EditorState = this.state;
-    const store: Store = state.store;
+    const store: Store = state.store;   // use discStore instead?
     let postNrs = state.replyToPostNrs;
 
     if (inclInReply && postNrs.length) {
@@ -711,28 +756,15 @@ export const Editor = createFactory<any, EditorState>({
     //   "Replying to post-1234" text:
     // will run instead — all fine.
     //
-    const mainStore: Store = this.getMainStore(inWhichFrame);
+    const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
 
-    let embMainStoreCopy: Partial<Store> | undefined;
     if (eds.isInEmbeddedEditor) {
       try {
-        embMainStoreCopy = {
-          // Clone data from the other iframe, so as not to 1) hold on to it
-          // and thereby maybe preventing data in that other frame from being
-          // freed. Probably not needed, since this arene't html tags, just
-          // variables, but let's clone anyway just in case.
-          // And 2) not getting it changed "at any time" by the other iframe
-          // — React.js wouldn't llike that.
-          currentPage: _.cloneDeep(mainStore.currentPage),
-          usersByIdBrief: _.cloneDeep(mainStore.usersByIdBrief),
-          currentPageId: mainStore.currentPageId,
-          currentCategories: _.cloneDeep(mainStore.currentCategories),
-        };
-        if (inWhichFrame) {
-          eds.embeddedPageId = inWhichFrame.eds.embeddedPageId;
-          eds.embeddingUrl = inWhichFrame.eds.embeddingUrl;
-          eds.embeddedPageAltId = inWhichFrame.eds.embeddedPageAltId;
-          eds.lazyCreatePageInCatId = inWhichFrame.eds.lazyCreatePageInCatId;
+        if (inDiscWin) {
+          eds.embeddedPageId = inDiscWin.eds.embeddedPageId;
+          eds.embeddingUrl = inDiscWin.eds.embeddingUrl;
+          eds.embeddedPageAltId = inDiscWin.eds.embeddedPageAltId;
+          eds.lazyCreatePageInCatId = inDiscWin.eds.lazyCreatePageInCatId;
         }
       }
       catch (ex) {
@@ -748,11 +780,11 @@ export const Editor = createFactory<any, EditorState>({
     }
 
     // Maybe should update this.state.store intsead, if in iframe, hmm.
-    const storeOkWManyCmtsIframes = inWhichFrame ? embMainStoreCopy : store;
+    const storeOkWManyCmtsIframes = inDiscWin ? discStore : store;
 
     const newState: Partial<EditorState> = {
-      inWhichFrame,
-      embMainStoreCopy,
+      inWhichFrame: inDiscWin,
+      embMainStoreCopy: eds.isInEmbeddedEditor ? discStore : undefined,
       anyPostType: postType,
       editorsCategories: storeOkWManyCmtsIframes.currentCategories,
       editorsPageId: storeOkWManyCmtsIframes.currentPageId || eds.embeddedPageId,
@@ -775,7 +807,7 @@ export const Editor = createFactory<any, EditorState>({
       pageId: newState.editorsPageId,
       postNr: postNrs[0], // for now
     };
-    draftLocator.postId = store_getPostId(mainStore, draftLocator.pageId, draftLocator.postNr);
+    draftLocator.postId = store_getPostId(discStore, draftLocator.pageId, draftLocator.postNr);
 
     // draftLocator used as key in local storage, better avoid empty fields.
     if (eds.embeddingUrl) {
@@ -791,11 +823,11 @@ export const Editor = createFactory<any, EditorState>({
     else if (_.isEqual([NoPostId], postNrs)) writingWhat = WritingWhat.ChatComment;
 
     this.loadDraftAndGuidelines(
-          draftLocator, writingWhat, undefined, inWhichFrame);
+          draftLocator, writingWhat, undefined, inDiscWin);
   },
 
 
-  editPost: function(postNr: PostNr, onDone?: EditsDoneHandler, inWhichFrame?: MainWin) {
+  editPost: function(postNr: PostNr, onDone?: EditsDoneHandler, inDiscWin?: DiscWin) {
     // [editor-drafts] UX COULD somehow give the user the option to cancel & close, without
     // loading? saving? any draft.
 
@@ -804,24 +836,24 @@ export const Editor = createFactory<any, EditorState>({
 
     // If many comments iframes, load the post from the correct one. [many_embcom_iframes]
     // (Need not copy any )
-    if (inWhichFrame?.eds) {
-      eds.embeddedPageId = inWhichFrame.eds.embeddedPageId;
-      eds.embeddingUrl = inWhichFrame.eds.embeddingUrl;
-      eds.embeddedPageAltId = inWhichFrame.eds.embeddedPageAltId;
-      this.setState({ inWhichFrame } as Partial<EditorState>);
+    if (inDiscWin?.eds) {
+      eds.embeddedPageId = inDiscWin.eds.embeddedPageId;
+      eds.embeddingUrl = inDiscWin.eds.embeddingUrl;
+      eds.embeddedPageAltId = inDiscWin.eds.embeddedPageAltId;
+      this.setState({ inWhichFrame: inDiscWin } as Partial<EditorState>);
     }
 
     // [manyiframes_pageid]
     Server.loadDraftAndText(postNr, (response: LoadDraftAndTextResponse) => {
       const state: EditorState = this.state;
       if (this.isGone) return;
-      if (state.inWhichFrame !== inWhichFrame) return;
-      const store: Store = state.store;  // do instead?: this.getMainStore(inWhichFrame);
+      if (state.inWhichFrame !== inDiscWin) return;
+      const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
       const draft: Draft | undefined = response.draft;
 
       // In case the draft was created when one wasn't logged in, then, now, set a user id.
-      if (draft && store.me) {
-        draft.byUserId = store.me.id;
+      if (draft && discStore.me) {
+        draft.byUserId = discStore.me.id;
       }
 
       // This can fail, if the post was moved by staff to a different page? Then it
@@ -830,7 +862,8 @@ export const Editor = createFactory<any, EditorState>({
 
       const newState: Partial<EditorState> = {
         anyPostType: null,
-        editorsCategories: store.currentCategories,  // might be wrong cats [many_embcom_iframes]
+        embMainStoreCopy: eds.isInEmbeddedEditor ? discStore : undefined,
+        editorsCategories: discStore.currentCategories, // [many_embcom_iframes]
         editorsPageId: response.pageId,  //  [many_embcom_iframes]
         editingPostNr: postNr,
         editingPostUid: response.postUid,
@@ -1008,7 +1041,7 @@ export const Editor = createFactory<any, EditorState>({
 
 
   loadDraftAndGuidelines: function(draftLocator: DraftLocator, writingWhat: WritingWhat,
-        pageRole?: PageRole, inWhichFrame?: MainWin) {
+        pageRole?: PageRole, inDiscWin?: DiscWin) {
 
     const setDraftAndGuidelines = (anyDraft?, anyGuidelines?) => {
       let draft = anyDraft || BrowserStorage.get(draftLocator);
@@ -1063,11 +1096,11 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const store: Store = this.getMainStore(inWhichFrame);
+    const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
 
     // For embedded comments iframes, the page might not yet have been created,
     // and the categoryId might be unknown / undefined.
-    const page: Page = store.currentPage;
+    const page: Page = discStore.currentPage;
     const categoryId: CategoryId | undefined = draftLocator.categoryId || page.categoryId;
     const pageType: PageRole = pageRole || page.pageRole || (
       eds.isInEmbeddedEditor ? PageRole.EmbeddedComments : die('TyE305WKD'));
@@ -1341,7 +1374,8 @@ export const Editor = createFactory<any, EditorState>({
     const state: EditorState = this.state;
     const anyPostType: PostType | U = state.anyPostType;
     const locator: DraftLocator = { draftType: DraftType.Scratch };
-    const mainStore: Store = eds.isInEmbeddedEditor ? this.getMainStore() : state.store;
+    const discStore: OneDiscStore =
+            eds.isInEmbeddedEditor ?  this.getDiscStore() : state.store;
 
     // If we're in an iframe, the page might have gotten lazy-created; then
     // we need to use eds.embeddedPageId.
@@ -1410,7 +1444,7 @@ export const Editor = createFactory<any, EditorState>({
       locator.draftType = postType_toDraftType(postType);
       locator.pageId = editorsPageId;
       locator.postNr = state.replyToPostNrs[0]; // for now just pick the first one
-      locator.postId = store_getPostId(mainStore, locator.pageId, locator.postNr);
+      locator.postId = store_getPostId(discStore, locator.pageId, locator.postNr);
       // This is needed for embedded comments, if the discussion page hasn't yet been created.
       if (eds.embeddingUrl) {
         locator.embeddingUrl = eds.embeddingUrl;
@@ -1420,7 +1454,7 @@ export const Editor = createFactory<any, EditorState>({
       locator.draftType = DraftType.Reply;
       locator.pageId = editorsPageId;
       locator.postNr = BodyNr;
-      locator.postId = store_getPostId(mainStore, locator.pageId, locator.postNr);
+      locator.postId = store_getPostId(discStore, locator.pageId, locator.postNr);
       postType = PostType.ChatMessage;
     }
     else if (isNewDirectMessage) {
@@ -1440,7 +1474,7 @@ export const Editor = createFactory<any, EditorState>({
     }
 
     const draft: Draft = {
-      byUserId: mainStore.me.id,
+      byUserId: discStore.me.id,
       draftNr: NoDraftNr,
       forWhat: locator,
       createdAt: getNowMs(),

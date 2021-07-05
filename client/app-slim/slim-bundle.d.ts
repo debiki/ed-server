@@ -135,7 +135,7 @@ declare namespace debiki2 {
 
   function win_isLoginPopup(): Bo;
   function getMainWin(): MainWin;
-  function getMainWinStore(): EmbSessionStore;
+  function win_getSessWinStore(): SessWinStore;
   function win_canUseCookies(win: MainWin): boolean;
 
   function getNowMs(): WhenMs;
@@ -353,7 +353,7 @@ declare namespace debiki2 {
   function store_findCatByRefOrId(store: Store, ref: RefOrId): Category | U;
   function store_ancestorCatsCurLast(store: Store, categoryId: CatId): Cat[];
   function store_findCatsWhereIMayCreateTopics(store: Store): Category[];
-  function store_getPostId(store: Store, pageId: PageId, postNr: PostNr): PostId | U;
+  function store_getPostId(store: OneDiscStore, pageId: PageId, postNr: PostNr): PostId | U;
 
   function categories_sortTree(categories: Category[]): CatsTree;
 

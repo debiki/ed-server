@@ -279,7 +279,7 @@ export function win_isLoginPopup(): Bo {
  * are made from the editor iframe and login popup wins too, not just the main
  * comments win.
  */
-export function getMainWin(): MainWin {  // QUICK RENAME to win_getSessFrame() ?
+export function getMainWin(): MainWin {  // QUICK RENAME to win_getSessWin() ?
   // Maybe there're no iframes and we're already in the main win?
   // (window.opener might still be defined though — could be an embedded
   // comments iframe, in another browser tab. So if we were to continue below,

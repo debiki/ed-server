@@ -1275,7 +1275,7 @@ export function deleteDraft(pageId: PageId, draft: Draft, deleteDraftPost: boole
   let draftPost: Post | U;
   if (deleteDraftPost) {
     // Maybe pass one's id in a parram instead?
-    const store: EmbSessionStore = getMainWinStore();
+    const store: SessWinStore = win_getSessWinStore();
     draftPost = store_makePostForDraft(store.me.id, draft);  // [60MNW53]
   }
   deleteDraftImpl(draftPost, draftDeletor, onDoneOrBeacon, onError);

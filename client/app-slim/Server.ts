@@ -712,7 +712,7 @@ export function addAnyNoCookieHeaders(headers: { [headerName: string]: St }) {  
   logD(`This is the main window: ${window === mainWin}`);
   try {
     logD("Window.opener.typs: " +
-        (window.opener && JSON.stringify(window.opener.typs)));
+        (window.opener && JSON.stringify((window.opener as DiscWin).typs)));
   }
   catch (ignored) {
     logD("Window.opener.typs: Threw exception. Opened from cross-origin window?");

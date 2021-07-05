@@ -23,14 +23,16 @@ interface PageSession  {
   sessType?: SessionType.AutoTokenSiteCustomSso;
 }
 
-interface __MainWinInterface extends Window {
+interface __TyWinInterface extends Window {
   tydyn?: { allIframePageIds: PageId[] };
   typs: PageSession;
   theStore: Store;
   eds: ServerVars;
 }
 
-type MainWin = __MainWinInterface & typeof globalThis;
+// RENAME to DiscWin.
+type MainWin = __TyWinInterface & typeof globalThis;
+type DiscWin = MainWin;
 
 
 // These variables are initialized in a certain <head><script>.  [5JWKA27]

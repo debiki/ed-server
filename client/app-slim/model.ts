@@ -902,9 +902,18 @@ interface Origins {
 }
 
 
-interface EmbSessionStore {  // REN to EmbSessStore
+interface SessWinStore {
   me?: Myself;
   embeddedOriginOrEmpty: St;
+}
+
+
+interface OneDiscStore extends SessWinStore {
+  currentPage?: Page;
+  currentPageId?: PageId;
+  currentCategories: Category[];   // RENAME [concice_is_nice] curCats
+  usersByIdBrief: { [userId: number]: Participant };  // = PatsById
+  pagesById: { [pageId: string]: Page };
 }
 
 
