@@ -764,10 +764,6 @@ export function store_mainSiteSection(store: Store): SiteSection {
 
 
 
-export function store_isNoPage(store: Store): Bo {
-  return isNoPage(store.currentPageId);
-}
-
 export function isNoPage(pageId: PageId): Bo {
   return !pageId || pageId === EmptyPageId;
 }

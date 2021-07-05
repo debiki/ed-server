@@ -343,8 +343,8 @@ declare namespace debiki2 {
   function store_maySendDirectMessageTo(store: Store, user: UserInclDetails): boolean;
   var page_isGroupTalk;
 
-  function store_getAuthorOrMissing(store: Store, post: Post): BriefUser;
-  function store_getUserOrMissing(store: Store, userId: UserId, errorCode2?: string): BriefUser;
+  function store_getAuthorOrMissing(store: DiscStore, post: Post): Pat;
+  function store_getUserOrMissing(store: DiscStore, userId: PatId, errorCode2?: St): Pat;
   var store_thisIsMyPage;
 
   function draftType_toPostType(draftType: DraftType): PostType | U;
@@ -377,7 +377,6 @@ declare namespace debiki2 {
   var isMember;
   var userId_isGuest;
   function store_isFeatFlagOn(store: Store, featureFlag: St): Bo;
-  function store_isNoPage(store: Store): boolean;
   function isNoPage(pageId: PageId): Bo;
   function store_isPageDeleted(store: Store): boolean;
   function page_isAncCatDeld(page: Page): Bo;
@@ -497,9 +496,11 @@ declare namespace debiki2 {
   var MenuItemDivider;
 
   function UserNameLink(props: {
-    user: BriefUser, store: Store, onClick?: Ay, avoidFullName?: Bo });
+      user: Pat, store: Store, onClick?: Ay, avoidFullName?: Bo });
+
   function UserName(props: {
-    user: BriefUser, store: Store, makeLink?: Bo, onClick?: Ay, avoidFullName?: Bo });
+      user: Pat, store?: Store, settings?: SettingsVisibleClientSide,
+      makeLink?: Bo, onClick?: Ay, avoidFullName?: Bo });
 
   var FacebookLogoImage;
 

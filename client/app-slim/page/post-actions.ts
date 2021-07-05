@@ -295,6 +295,7 @@ export const PostActions = createComponent({
         t.Solution);
     }
 
+    // + check editorsPageId  ?
     const replyingToClass = store.replyingToPostNr === post.nr  ? ' s_PA_B-Active' : '';
     const disabledClass = isEditorOpenAlready ? ' s_PA_B-Disabled' : '';
 

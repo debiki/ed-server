@@ -259,6 +259,7 @@ interface ScrollIntoViewOpts extends CalcScrollOpts {
 
 interface ShowPostOpts extends ScrollIntoViewOpts {
   showChildrenToo?: boolean;
+  inFrame?: DiscWin;
 }
 
 
@@ -908,16 +909,21 @@ interface SessWinStore {
 }
 
 
-interface OneDiscStore extends SessWinStore {
+/// Can be 1) the main win with the editor and sidebars, or 2)
+/// a copy of the store in an embedded comments iframe, no editor or sidebars.
+/// [many_embcom_iframes]
+///
+interface DiscStore extends SessWinStore {
   currentPage?: Page;
   currentPageId?: PageId;
-  currentCategories: Category[];   // RENAME [concice_is_nice] curCats
-  usersByIdBrief: { [userId: number]: Participant };  // = PatsById
+  currentCategories: Cat[];   // RENAME [concice_is_nice] curCats
+  usersByIdBrief: { [userId: number]: Pat };  // = PatsById
   pagesById: { [pageId: string]: Page };
 }
+type OneDiscStore = DiscStore;
 
 
-interface Store extends Origins, PartialEditorStoreState {
+interface Store extends Origins, DiscStore, PartialEditorStoreState {
   // Need to use the same layout settings as the server, on the first
   // render, when reusing (hydrating) html from the server.
   isHydrating?: Bo;
@@ -954,7 +960,8 @@ interface Store extends Origins, PartialEditorStoreState {
   isImpersonating?: boolean;
   isViewingAs?: boolean;
   rootPostId: number;
-  usersByIdBrief: { [userId: number]: Participant };  // = PatsById
+
+  // Maybe move to DiscStore?
   pageMetaBriefById: { [pageId: string]: PageMetaBrief };
 
   isEditorOpen?: boolean;  // default: false
@@ -979,9 +986,6 @@ interface Store extends Origins, PartialEditorStoreState {
   // Overrides quickUpdate.
   cannotQuickUpdate?: boolean;
 
-  pagesById: { [pageId: string]: Page };
-  currentPage?: Page;
-  currentPageId?: PageId;
   debugStartPageId: string;
 
   tagsStuff?: TagsStuff;
@@ -1550,7 +1554,7 @@ interface StorePatch extends EditorStorePatch {
 // So we know which post to highlight, to indicate it's being replied to.
 interface PartialEditorStoreState {
   editorsPageId?: PageId;
-  replyingToPostNr?: PostNr;
+  replyingToPostNr?: PostNr;  // on page editorsPageId
   editingPostId?: PostId;
 }
 

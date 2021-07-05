@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 Kaj Magnus Lindberg
+ * Copyright (c) 2015-2021 Kaj Magnus Lindberg
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -20,13 +20,14 @@
 //------------------------------------------------------------------------------
    namespace debiki2.editor {
 //------------------------------------------------------------------------------
-// CR_MISSING mostly
+// CR_MISSING mostly, no, just a bit
 
 const d = { i: debiki.internal };
 const r = ReactDOMFactories;
 let FileAPI;
 
 let theEditor: any;
+
 
 // rta supports multichar triggers (v3.1.1), and can use a custom
 // component instead of a <textarea> (v4.2.0).
@@ -113,9 +114,9 @@ export const listUsernamesTrigger = {
 
 
 interface EditorState {
-  inWhichFrame?: MainWin,
+  forFrame?: DiscWin,
+  forFrameStore?: DiscStore;
   store: Store;
-  embMainStoreCopy?: OneDiscStore;
   visible: boolean;
   replyToPostNrs: PostNr[];
   anyPostType?: PostType;
@@ -191,57 +192,64 @@ export const Editor = createFactory<any, EditorState>({
   /// This is part of making the embedded editor work with many comment iframes
   /// at the same time. We clone the relevant discussion data, from the
   /// relevant embedded comments iframe. — If we're not in embedded iframes,
-  /// we just return the store as is (we're in the main window already).
+  /// we just return the React store of the current window as is (which is then
+  /// the top window).
   ///
-  getDiscStore(inWhichFrame?: MainWin): OneDiscStore {
+  getDiscStore(forFrame?: DiscWin): DiscStore {
     if (!eds.isInIframe) {
       // @ifdef DEBUG
-      dieIf(inWhichFrame, 'TyE507MWEG25')
+      dieIf(forFrame, 'TyE507MWEG25');
+      dieIf(window.top !== window, 'TyE6WMLE25');
       // @endif
       return debiki2.ReactStore.allData();
     }
 
     // @ifdef DEBUG
-    //dieIf(!inWhichFrame && !this.state.inWhichFrame, 'TyE604RMJ46');
+    //dieIf(!forFrame && !this.state.forFrame, 'TyE604RMJ46');
     // @endif
 
-    // If this.state hasn't yet been updated, we'll use the inWhichFrame param.
-    const discOrSessStore: Partial<OneDiscStore> =
-        inWhichFrame?.theStore || (    // [ONESTORE]  [many_embcom_iframes]
-              this.state.inWhichFrame ?
-                  this.state.inWhichFrame.theStore : win_getSessWinStore());
+    // `forFrame` is sometimes available before this.state has been updated, so
+    // try to use it first.
+    const state: EditorState = this.state;
+    const discFrameStore: Partial<DiscStore> =
+        forFrame?.theStore || (    // [ONESTORE]  [many_embcom_iframes]
+              state.forFrame ? state.forFrame.theStore : (
+                  // This'd be weird, would mean the comments iframe was deleted
+                  // by external javascript? See below [.72JM6]
+                  win_getSessWinStore()));
 
-    // The store is from another iframe — clone it. And if it's from the session
-    // iframe, add empty maps and lists for users and pages and posts (this
+    // `discFrameStore` is from another iframe — clone it. And if it's from the session
+    // iframe [.72JM6], add empty maps and lists for users and pages (this
     // would be weird, but maybe can happen if buggy javascript on the embedd*ing*
     // page deletes a comments iframe. Then it's nice if Talkyard continues
     // working as best it can without showing errors?).
     //
-    // Why clone? So as not to 1) hold on to data from another frame and thereby
-    // maybe preventing data in that other frame from being freed. Maybe not needed,
+    // Why clone? So as not to 1) hold on to data from another iframe and thereby
+    // maybe preventing data in that other iframe from being freed. Maybe not needed,
     // since this aren't html tags, just variables, but let's clone just in case.
-    // And 2) so that not getting it changed "at any time" by the other iframe
+    // And 2) so that the data won't get changed "at any time" by the other iframe
     // — React.js wouldn't like that.
     //
-    const s = discOrSessStore;
-    const discStore: OneDiscStore = {
-      me: s.me,
-      embeddedOriginOrEmpty: s.embeddedOriginOrEmpty,
-      currentPage: _.cloneDeep(s.currentPage),
-      currentPageId: s.currentPageId,
-      currentCategories: _.cloneDeep(s.currentCategories),
-      usersByIdBrief: _.cloneDeep(s.usersByIdBrief || {}),
+    const storeClone: DiscStore = _.cloneDeep({
+      me: discFrameStore.me,
+      embeddedOriginOrEmpty: discFrameStore.embeddedOriginOrEmpty,
+      currentPage: discFrameStore.currentPage,
+      currentPageId: discFrameStore.currentPageId,
+      currentCategories: discFrameStore.currentCategories,
+      usersByIdBrief: discFrameStore.usersByIdBrief || {},
       pagesById: {},
-    };
-    if (discStore.currentPage) {
+    });
+
+    // We show the embedded editor for one discussion at a time, so we need
+    // the current page, only.
+    if (storeClone.currentPage) {
       // @ifdef DEBUG
-      dieIf(discStore.currentPage.pageId !== discStore.currentPageId, 'TyE507MWEG27')
+      dieIf(storeClone.currentPage.pageId !== storeClone.currentPageId, 'TyE507MWEG27')
       // @endif
-      // We show the embedded editor for one discussion at a time, so we
-      // need only the current page.
-      discStore.pagesById[discStore.currentPageId] = discStore.currentPage;
+      storeClone.pagesById[storeClone.currentPageId] = storeClone.currentPage;
     }
-    return discStore;
+
+    return storeClone;
   },
 
 
@@ -249,11 +257,13 @@ export const Editor = createFactory<any, EditorState>({
     this.setState({ store: debiki2.ReactStore.allData() });
   },
 
+
   onManualScroll: function() {
     // Then stop auto scrolling.
     // Start again, if pat clicks the Show Preview button?
     delete this.scrollToPreview;
   },
+
 
   UNSAFE_componentWillMount: function() {
     // Sync delay w e2e test. Dupl code. [upd_ed_pv_delay]
@@ -266,6 +276,7 @@ export const Editor = createFactory<any, EditorState>({
 
     this.searchForSimilarTopicsSoon = _.debounce(this.searchForSimilarTopicsNow, 1800);
   },
+
 
   componentDidMount: function() {
     // Minor BUG: resizing .dw-comments to adjust for the textarea doesn't work. (5YKQ27)
@@ -293,6 +304,7 @@ export const Editor = createFactory<any, EditorState>({
     }); */
   },
 
+
   componentDidUpdate: function(prevProps, prevState: EditorState) {
     const state: EditorState = this.state;
     this.perhapsShowGuidelineModal();
@@ -305,6 +317,7 @@ export const Editor = createFactory<any, EditorState>({
     }
   },
 
+
   componentWillUnmount: function() {
     this.isGone = true;
     logD("Editor: componentWillUnmount");
@@ -316,12 +329,14 @@ export const Editor = createFactory<any, EditorState>({
     this.saveDraftNow();
   },
 
+
   focusInputFields: function() {
     let elemToFocus = this.titleElm || this.textareaElm;
     if (elemToFocus) {
       elemToFocus.focus();
     }
   },
+
 
   makeEditorResizable: function() {
     if (eds.isInEmbeddedEditor) {
@@ -331,6 +346,7 @@ export const Editor = createFactory<any, EditorState>({
     util.makeResizableUp(this.refs.editor, this.refs.resizeHandle, this.makeSpaceAtBottomForEditor);
   },
 
+
   makeSpaceAtBottomForEditor: function() {
     if (this.isGone) return;
     const editorHeightPx = this.refs.editor.clientHeight + 'px';
@@ -339,15 +355,18 @@ export const Editor = createFactory<any, EditorState>({
     });
   },
 
+
   returnSpaceAtBottomForEditor: function() {
     _.each(this.columns, (c) => {
       c.style.bottom = '0px';
     });
   },
 
+
   selectAndUploadFile: function() {
     this.refs.uploadFileInput.click();
   },
+
 
   onPaste: function(event: ClipboardEvent) {
     // Note! This works only (?) if right clicking an image in the browser,
@@ -417,6 +436,7 @@ export const Editor = createFactory<any, EditorState>({
     } */
   },
 
+
   // We never un-initialize this, instead we reuse the same editor instance always once created.
   initUploadFileStuff: function() {
     if (!this.refs.uploadFileInput)
@@ -461,7 +481,7 @@ export const Editor = createFactory<any, EditorState>({
 
     for (let file of files) {
       const store: Store = this.state.store;
-      const me: Myself = store.me;
+      const me: Myself = store.me;  // or use forFrameStore?
 
       // '**' can mean all allowed, for backw compat with old sites
       // that don't expect any upload file type restrictions.
@@ -671,14 +691,20 @@ export const Editor = createFactory<any, EditorState>({
   },
 
 
+
   toggleWriteReplyToPostNr: function(postNr: PostNr, inclInReply: Bo,
-        anyPostType?: PostType, inDiscWin?: DiscWin) {
+        anyPostType?: PostType, inFrame?: DiscWin) {
     if (this.alertBadState('WriteReply'))
       return;
 
     const state: EditorState = this.state;
-    const store: Store = state.store;   // use discStore instead?
     let postNrs = state.replyToPostNrs;
+
+    // If we're in the blog comments editor iframe, then, usernames are stored
+    // in the iframe with the embedded comments — the one with all comments.
+    // We'll then clone the parts we need of that iframe's Store,
+    // and remember in this.state.forFrameStore.
+    const discStore: DiscStore = this.getDiscStore(inFrame);
 
     if (inclInReply && postNrs.length) {
       // This means we've started replying to a post, and then clicked Reply
@@ -697,7 +723,7 @@ export const Editor = createFactory<any, EditorState>({
     // No multireplies — disabled.
     dieIf(postNrs.length >= 2, 'TyE35KKGJRT0');
 
-    if (state.editorsPageId !== store.currentPageId && postNrs.length) {
+    if (state.editorsPageId !== discStore.currentPageId && postNrs.length) {
       // The post nrs on this different page, won't match the ones in postNrs.
       // So ignore this.
       // UX COULD disable the reply buttons? Also see (5445522) just above.  — Done.
@@ -746,25 +772,13 @@ export const Editor = createFactory<any, EditorState>({
       postType = PostType.Flat;
     }
 
-    // If we're in the blog comments editor iframe, then, usernames are avaiable
-    // only in the "main" iframe — the one with all comments. Let's clone
-    // the parts we need, and store in our own local React store.
-    //
-    // COULD ask about this approach (i.e. using data from another iframe
-    // on the same domain) at StackOverflow, but for now, just try-catch
-    // — if won't work, some old ode that shows:
-    //   "Replying to post-1234" text:
-    // will run instead — all fine.
-    //
-    const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
-
     if (eds.isInEmbeddedEditor) {
       try {
-        if (inDiscWin) {
-          eds.embeddedPageId = inDiscWin.eds.embeddedPageId;
-          eds.embeddingUrl = inDiscWin.eds.embeddingUrl;
-          eds.embeddedPageAltId = inDiscWin.eds.embeddedPageAltId;
-          eds.lazyCreatePageInCatId = inDiscWin.eds.lazyCreatePageInCatId;
+        if (inFrame) {   // [many_embcom_iframes]
+          eds.embeddedPageId = inFrame.eds.embeddedPageId;
+          eds.embeddingUrl = inFrame.eds.embeddingUrl;
+          eds.embeddedPageAltId = inFrame.eds.embeddedPageAltId;
+          eds.lazyCreatePageInCatId = inFrame.eds.lazyCreatePageInCatId;
         }
       }
       catch (ex) {
@@ -778,18 +792,23 @@ export const Editor = createFactory<any, EditorState>({
         }
       }
     }
-
-    // Maybe should update this.state.store intsead, if in iframe, hmm.
-    const storeOkWManyCmtsIframes = inDiscWin ? discStore : store;
+    else {
+      // Should be in sync because of the debiki2.StoreListenerMixin.
+      // (I wonder if some race cond could make them different for a millisec?)
+      // @ifdef DEBUG
+      dieIf(state.store !== discStore, 'TyE502MTSE83');
+      // @endif
+      void 0;
+    }
 
     const newState: Partial<EditorState> = {
-      inWhichFrame: inDiscWin,
-      embMainStoreCopy: eds.isInEmbeddedEditor ? discStore : undefined,
+      forFrame: inFrame,
+      forFrameStore: eds.isInEmbeddedEditor ? discStore : undefined,
       anyPostType: postType,
-      editorsCategories: storeOkWManyCmtsIframes.currentCategories,
-      editorsPageId: storeOkWManyCmtsIframes.currentPageId || eds.embeddedPageId,
+      editorsCategories: discStore.currentCategories,
+      editorsPageId: discStore.currentPageId || eds.embeddedPageId,
       replyToPostNrs: postNrs,
-      text: state.text || makeDefaultReplyText(store, postNrs),
+      text: state.text || makeDefaultReplyText(discStore, postNrs),
     };
     this.showEditor(newState);
 
@@ -809,7 +828,7 @@ export const Editor = createFactory<any, EditorState>({
     };
     draftLocator.postId = store_getPostId(discStore, draftLocator.pageId, draftLocator.postNr);
 
-    // draftLocator used as key in local storage, better avoid empty fields.
+    // draftLocator used as key in local storage, better avoid null/undef/empty fields.
     if (eds.embeddingUrl) {
       draftLocator.embeddingUrl = eds.embeddingUrl;
     }
@@ -823,11 +842,12 @@ export const Editor = createFactory<any, EditorState>({
     else if (_.isEqual([NoPostId], postNrs)) writingWhat = WritingWhat.ChatComment;
 
     this.loadDraftAndGuidelines(
-          draftLocator, writingWhat, undefined, inDiscWin);
+          draftLocator, writingWhat, undefined, inFrame);
   },
 
 
-  editPost: function(postNr: PostNr, onDone?: EditsDoneHandler, inDiscWin?: DiscWin) {
+
+  editPost: function(postNr: PostNr, onDone?: EditsDoneHandler, inFrame?: DiscWin) {
     // [editor-drafts] UX COULD somehow give the user the option to cancel & close, without
     // loading? saving? any draft.
 
@@ -836,20 +856,20 @@ export const Editor = createFactory<any, EditorState>({
 
     // If many comments iframes, load the post from the correct one. [many_embcom_iframes]
     // (Need not copy any )
-    if (inDiscWin?.eds) {
-      eds.embeddedPageId = inDiscWin.eds.embeddedPageId;
-      eds.embeddingUrl = inDiscWin.eds.embeddingUrl;
-      eds.embeddedPageAltId = inDiscWin.eds.embeddedPageAltId;
-      this.setState({ inWhichFrame: inDiscWin } as Partial<EditorState>);
+    if (inFrame?.eds) {
+      eds.embeddedPageId = inFrame.eds.embeddedPageId;
+      eds.embeddingUrl = inFrame.eds.embeddingUrl;
+      eds.embeddedPageAltId = inFrame.eds.embeddedPageAltId;
+      this.setState({ forFrame: inFrame } as Partial<EditorState>);
     }
 
     // [manyiframes_pageid]
     Server.loadDraftAndText(postNr, (response: LoadDraftAndTextResponse) => {
       const state: EditorState = this.state;
       if (this.isGone) return;
-      if (state.inWhichFrame !== inDiscWin) return;
-      const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
-      const draft: Draft | undefined = response.draft;
+      if (state.forFrame !== inFrame) return;
+      const discStore: DiscStore = this.getDiscStore(inFrame);
+      const draft: Draft | U = response.draft;
 
       // In case the draft was created when one wasn't logged in, then, now, set a user id.
       if (draft && discStore.me) {
@@ -862,9 +882,9 @@ export const Editor = createFactory<any, EditorState>({
 
       const newState: Partial<EditorState> = {
         anyPostType: null,
-        embMainStoreCopy: eds.isInEmbeddedEditor ? discStore : undefined,
+        forFrameStore: eds.isInEmbeddedEditor ? discStore : undefined,
         editorsCategories: discStore.currentCategories, // [many_embcom_iframes]
-        editorsPageId: response.pageId,  //  [many_embcom_iframes]
+        editorsPageId: response.pageId,
         editingPostNr: postNr,
         editingPostUid: response.postUid,
         editingPostRevisionNr: response.currentRevisionNr,
@@ -1002,7 +1022,7 @@ export const Editor = createFactory<any, EditorState>({
     // the active Reply button(s).)
 
     const state: EditorState = this.state;
-    const store: Store = state.store;
+    const store: DiscStore = state.forFrameStore || state.store;
 
     // REFACTOR: Remove allFine? Not needed?
     const allFine = state.draftStatus <= DraftStatus.NeedNotSave &&
@@ -1041,7 +1061,7 @@ export const Editor = createFactory<any, EditorState>({
 
 
   loadDraftAndGuidelines: function(draftLocator: DraftLocator, writingWhat: WritingWhat,
-        pageRole?: PageRole, inDiscWin?: DiscWin) {
+        pageRole?: PageRole, inFrame?: DiscWin) {
 
     const setDraftAndGuidelines = (anyDraft?, anyGuidelines?) => {
       let draft = anyDraft || BrowserStorage.get(draftLocator);
@@ -1050,7 +1070,8 @@ export const Editor = createFactory<any, EditorState>({
       // or before there was a discussion id (maybe the site admin added later).
       if (!draft) {
         const hasDiscId = !!draftLocator.discussionId;
-        const hasPageId = draftLocator.pageId !== EmptyPageId;
+        const hasPageId = !isNoPage(draftLocator.pageId);
+        // UX, minor: Could find all 3 drafts (if any) and pick the most recent one?
         if (hasDiscId) {
           const loc2 = { ... draftLocator };
           delete loc2.discussionId;
@@ -1096,7 +1117,7 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const discStore: OneDiscStore = this.getDiscStore(inDiscWin);
+    const discStore: DiscStore = this.getDiscStore(inFrame);
 
     // For embedded comments iframes, the page might not yet have been created,
     // and the categoryId might be unknown / undefined.
@@ -1121,8 +1142,8 @@ export const Editor = createFactory<any, EditorState>({
         (guidelinesSafeHtml: string | U, draft?: Draft) => {
       logD("Done loading draft and guidelines.");
       const state: EditorState = this.state;
-      if (this.isGone || !state.visible)
-        return;
+      if (this.isGone || !state.visible) return;
+      if (state.forFrame !== inFrame) return;
       let guidelines = undefined;
       if (guidelinesSafeHtml) {
         const guidelinesHash = hashStringToNumber(guidelinesSafeHtml);
@@ -1280,7 +1301,7 @@ export const Editor = createFactory<any, EditorState>({
         const params: ShowEditsPreviewParams = {
           scrollToPreview,
           safeHtml,
-          editorsPageId: state.editorsPageId,  // [many_embcom_iframes]
+          editorsPageId: state.editorsPageId,
         };
         const postNrs: PostNr[] = state.replyToPostNrs;
         if (postNrs.length === 1) {
@@ -1290,7 +1311,7 @@ export const Editor = createFactory<any, EditorState>({
         if (state.editingPostUid) {
           params.editingPostNr = state.editingPostNr;
         }
-        ReactActions.showEditsPreviewInPage(params, state.inWhichFrame);
+        ReactActions.showEditsPreviewInPage(params, state.forFrame);
         // We'll hide the preview, wheh closing the editor, here: (TGLPRVW)
       }
     });
@@ -1302,7 +1323,7 @@ export const Editor = createFactory<any, EditorState>({
 
     const state: EditorState = this.state;
     const store: Store = state.store;
-    let settings: SettingsVisibleClientSide = store.settings;
+    const settings: SettingsVisibleClientSide = store.settings;
     if (settings.enableSimilarTopics === false)
       return;
 
@@ -1374,7 +1395,7 @@ export const Editor = createFactory<any, EditorState>({
     const state: EditorState = this.state;
     const anyPostType: PostType | U = state.anyPostType;
     const locator: DraftLocator = { draftType: DraftType.Scratch };
-    const discStore: OneDiscStore =
+    const discStore: DiscStore =
             eds.isInEmbeddedEditor ?  this.getDiscStore() : state.store;
 
     // If we're in an iframe, the page might have gotten lazy-created; then
@@ -1572,7 +1593,7 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const store: Store = state.store;
+    const store: Store = state.store;  // or  forFrameStore?
     const draftToSave: Draft = { ...draftOldOrEmpty, text, title };
 
     // If this is an embedded comments discussion, and the discussion page hasn't
@@ -1685,7 +1706,7 @@ export const Editor = createFactory<any, EditorState>({
       //   you have navigated away frome it, to here""
       this.callOnDoneCallback(true);
       this.clearAndCloseFineIfGone(); // [6027TKWAPJ5]
-    }, state.inWhichFrame);
+    }, state.forFrame);
   },
 
   saveNewPost: function() {
@@ -1697,7 +1718,7 @@ export const Editor = createFactory<any, EditorState>({
       // Also, if we've navigaated away, seems any draft won't get deleted.
       this.callOnDoneCallback(true);
       this.clearAndCloseFineIfGone();
-    }, state.inWhichFrame);
+    }, state.forFrame);
   },
 
   saveNewForumPage: function() {
@@ -1765,6 +1786,7 @@ export const Editor = createFactory<any, EditorState>({
     }
   },
 
+
   cycleMaxHorizBack: function() {
     // Cycle from 1) normal to 2) maximized & tiled vertically, to 3) maximized & tiled horizontally
     // and then back to normal.
@@ -1785,6 +1807,7 @@ export const Editor = createFactory<any, EditorState>({
             this.updatePreviewSoon : undefined);
   },
 
+
   togglePreview: function() {
     const state: EditorState = this.state;
     this.setState({
@@ -1793,6 +1816,10 @@ export const Editor = createFactory<any, EditorState>({
     });
   },
 
+
+  /// (When the editor is minimized, it's still considered open — there's some
+  /// edits in progress inside, just that its' been temporarily minimized.)
+  ///
   toggleMinimized: function() {
     const state: EditorState = this.state;
     const nextShowMini = !state.showMinimized;
@@ -1806,6 +1833,7 @@ export const Editor = createFactory<any, EditorState>({
     }
     // Else: the editor covers 100% anyway.
   },
+
 
   showEditor: function(statePatch: Partial<EditorState>) {
     // @ifdef DEBUG
@@ -1829,11 +1857,13 @@ export const Editor = createFactory<any, EditorState>({
     });
   },
 
+
   saveDraftClearAndClose: function() {
     this.saveDraftNow(
         (upToDateDraft?: Draft) =>
           this.clearAndCloseFineIfGone({ keepDraft: true, upToDateDraft }));
   },
+
 
   clearAndCloseFineIfGone: function(ps: { keepDraft?: true, upToDateDraft?: Draft } = {}) {
     const state: EditorState = this.state;
@@ -1872,7 +1902,7 @@ export const Editor = createFactory<any, EditorState>({
 
     // Hide any preview post we created when opening the editor (TGLPRVW),
     // and reenable any Reply buttons.
-    ReactActions.hideEditorAndPreview(params, state.inWhichFrame);
+    ReactActions.hideEditorAndPreview(params, state.forFrame);
 
     this.returnSpaceAtBottomForEditor();
 
@@ -1880,7 +1910,8 @@ export const Editor = createFactory<any, EditorState>({
       return;
 
     this.setState({
-      inWhichFrame: undefined,
+      forFrame: undefined,
+      forFrameStore: undefined,
       visible: false,
       replyToPostNrs: [],
       anyPostType: undefined,
@@ -1951,9 +1982,11 @@ export const Editor = createFactory<any, EditorState>({
     this.setState({ text: newText }, this.updatePreviewSoon);
   },
 
+
+
   render: function() {
     const state: EditorState = this.state;
-    const store: Store = state.store;
+    const store: DiscStore = state.forFrameStore || state.store;
 
     // Is undef, if in the API section, e.g. typing a direct message to a user.
     const editorsPage: Page | undefined =
@@ -1963,7 +1996,7 @@ export const Editor = createFactory<any, EditorState>({
 
     const me: Myself = store.me;
     const myUiPrefs: UiPrefs = me_uiPrefs(me);
-    let settings: SettingsVisibleClientSide = store.settings;
+    const settings: SettingsVisibleClientSide = state.store.settings;
     const isPrivateGroup = page_isPrivateGroup(state.newPageRole);
 
     // We'll disable the editor, until any draft has been loaded. [5AKBW20] Otherwise one might
@@ -2056,14 +2089,14 @@ export const Editor = createFactory<any, EditorState>({
       if (state.newForumTopicCategoryId && !isPrivateGroup &&
           settings_showCategories(settings, me))
         categoriesDropdown =
-          SelectCategoryDropdown({ className: 'esEdtr_titleEtc_category', store: store,
+          SelectCategoryDropdown({ className: 'esEdtr_titleEtc_category', store,
               categories: state.editorsCategories,
               selectedCategoryId: state.newForumTopicCategoryId,
               onCategorySelected: this.changeCategory });
 
       if (state.newPageRole && settings_selectTopicType(settings, me)) {
         pageRoleDropdown = PageRoleDropdown({ store, pageRole: state.newPageRole,
-            complicated: store.settings.showExperimental,
+            complicated: settings.showExperimental,
             onSelect: this.changeNewForumPageRole,
             title: t.TopicType, className: 'esEdtr_titleEtc_pageRole' });
       }
@@ -2091,6 +2124,8 @@ export const Editor = createFactory<any, EditorState>({
 
     // ----- "Reply to" or "Editing" text
 
+    const whichFrameScrollOpts: ShowPostOpts = { inFrame: state.forFrame };
+
     let doingWhatInfo: any;
     if (_.isNumber(editingPostNr)) {
       doingWhatInfo =
@@ -2103,7 +2138,7 @@ export const Editor = createFactory<any, EditorState>({
               onMouseLeave: () => ReactActions.highlightPost(editingPostNr, false),
               onClick: (event) => {
                 event.preventDefault();
-                ReactActions.scrollAndShowPost(editingPostNr);
+                ReactActions.scrollAndShowPost(editingPostNr, whichFrameScrollOpts);
                 this.scrollToPreview = true;
               }},
             t.e.EditPost_2 + editingPostNr + ':'));
@@ -2166,42 +2201,14 @@ export const Editor = createFactory<any, EditorState>({
           _.filter(replyToPostNrs, (id) => id !== NoPostId).map((replToPostNr, index) => {
             // If replying to a blog post, then, it got auto created by the System
             // user. Don't show "Reply to System".
-            let replToPost: Post | undefined;
 
-            let replToAuthor: BriefUser | undefined;
-            if (eds.isInEmbeddedEditor) {
-              // Here in the embedded editor, we haven't loaded any page or author names
-              // — get them from the main iframe instead (the one with all the comments).
-              // This is a new and a bit odd approach? (Jan 2020.) Let's wrap in try (although
-              // shouldn't be needed).)
-              //
-              // REFACTOR CLEAN_UP don't send just a postNr to the editor,
-              // instead send:
-              //     { replyingToPost: Post, replyingToAuthor: Participant }   ? + page id ?
-              // then can skip all this (!),
-              // plus, post remembered, also if navigating to other page.
-              //
-              try {
-                replToPost = state.embMainStoreCopy.currentPage.postsByNr[replToPostNr];
-                replToAuthor = replToPost && store_getAuthorOrMissing(
-                    state.embMainStoreCopy as Store, replToPost);
-              }
-              catch (ex) {
-                if (!this.loggedStoreCloneWarning) {
-                  logW("Error getting author name from main iframe store clone", ex);
-                  debugger;
-                  this.loggedStoreCloneWarning = true;
-                }
-              }
-            }
-            else {
-              replToPost = editorsPage?.postsByNr[replToPostNr];
-              replToAuthor = replToPost && store_getAuthorOrMissing(store, replToPost);
-            }
+            const replToPost: Post | U = editorsPage?.postsByNr[replToPostNr];
+            const replToAuthor: Pat | U =
+                    replToPost && store_getAuthorOrMissing(store, replToPost);
 
             let replyingToWhat;
             if (replToAuthor) {
-              replyingToWhat = UserName({ user: replToAuthor, store,
+              replyingToWhat = UserName({ user: replToAuthor, settings,
                   makeLink: false, onClick: null, avoidFullName: true });
             }
             else {
@@ -2218,7 +2225,7 @@ export const Editor = createFactory<any, EditorState>({
                   onMouseEnter: () => ReactActions.highlightPost(replToPostNr, true),
                   onMouseLeave: () => ReactActions.highlightPost(replToPostNr, false),
                   onClick: !replToPost ? undefined : () => {
-                    ReactActions.scrollAndShowPost(replToPost);
+                    ReactActions.scrollAndShowPost(replToPost, whichFrameScrollOpts);
                     // Stop auto scrolling the preview into view — since pat
                     // apparently wants to view the post hen is replying to.
                     // (If clicking Show Preview, we'll resume auto scrolling into view.)
@@ -2508,6 +2515,7 @@ export const Editor = createFactory<any, EditorState>({
 });
 
 
+
 const GuidelinesModal = createClassAndFactory({
   displayName: 'GuidelinesModal',
 
@@ -2524,9 +2532,11 @@ const GuidelinesModal = createClassAndFactory({
 });
 
 
+
 function page_isUsabilityTesting(pageType: PageRole): boolean {  // [plugin]
   return pageType === PageRole.UsabilityTesting;
 }
+
 
 
 function wrapSelectedText(textarea: HTMLTextAreaElement, content: St,
@@ -2545,7 +2555,8 @@ function wrapSelectedText(textarea: HTMLTextAreaElement, content: St,
 }
 
 
-function makeDefaultReplyText(store: Store, postIds: PostId[]): string {
+
+function makeDefaultReplyText(store: DiscStore, postIds: PostId[]): string {
   const page: Page = store.currentPage;
   let result = '';
   // For UTX replies, include the instructions, in bold-italic lines,  [2JFKD0Y3]
@@ -2588,13 +2599,13 @@ function makeDefaultReplyText(store: Store, postIds: PostId[]): string {
 // lazily when the 1st reply is posted [4AMJX7]); there's no page id to use in the
 // draft locator. Could use the embedding URL though, or data-discussion-id="..."
 // embedding page html tag attr.
-function isEmbeddedNotYetCreatedPage(props: { store: Store, messageToUserIds }): boolean {
+function isEmbeddedNotYetCreatedPage(props: { store: DiscStore, messageToUserIds }): Bo {
   // If is-no-page, then the page doesn't exist. However, we might be in the user
   // profile section, composing a reply or a direct message to someone — then we
   // do save drafts.
   const result =
       debiki2.isNoPage(eds.embeddedPageId) &&
-      store_isNoPage(props.store) &&
+      debiki2.isNoPage(props.store.currentPageId) &&
       !props.messageToUserIds.length && // could skip this?
       eds.isInIframe;
   // @ifdef DEBUG

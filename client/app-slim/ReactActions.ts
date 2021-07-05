@@ -512,7 +512,7 @@ export function scrollAndShowPost(postOrNr: Post | PostNr, anyShowPostOpts?: Sho
 
   if (eds.isInEmbeddedEditor) {
     const nr = _.isNumber(postOrNr) ? postOrNr : postOrNr.nr;
-    sendToCommentsIframe(['scrollToPostNr', nr]);
+    sendToCommentsIframe(['scrollToPostNr', nr], anyShowPostOpts.inFrame);
     return;
   }
 
@@ -538,7 +538,7 @@ export function scrollAndShowPost(postOrNr: Post | PostNr, anyShowPostOpts?: Sho
   // We don't want the topbar to occlude the whatever we're scrolling to.
   // COULD do in utils.scrollIntoView() instead?  [306KDRGFG2]
   marginTop += topbar.getTopbarHeightInclShadow();
-  if (store.replyingToPostNr === post.nr ||
+  if (store.replyingToPostNr === post.nr ||   // + check editorsPageId  ?
       store.editingPostId === post.uniqueId) {
     // Add more margin so "Replying to:" above also will scroll into view. [305KTJ4]
     marginTop += 75;
@@ -989,7 +989,7 @@ let origPostBeforeEdits: Post | undefined;
 let lastFlashPostNr: PostNr | undefined;
 
 
-export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inWhichFrame?: Window) {
+export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inFrame?: DiscWin) {
   // @ifdef DEBUG
   dieIf(ps.replyToNr && ps.editingPostNr, 'TyE73KGTD02');
   dieIf(ps.replyToNr && !ps.anyPostType, 'TyE502KGSTJ46');
@@ -999,7 +999,7 @@ export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inWhichFrame?
     const editorIframeHeightPx = window.innerHeight;
      // DO_AFTER 2020-09-01 send 'showEditsPreviewInPage' instead.
     sendToCommentsIframe(
-            ['showEditsPreview', { ...ps, editorIframeHeightPx }], inWhichFrame);
+            ['showEditsPreview', { ...ps, editorIframeHeightPx }], inFrame);
     return;
   }
 
@@ -1054,12 +1054,14 @@ export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inWhichFrame?
       origPostBeforeEdits = postToEdit;
     }
     patch = page_makeEditsPreviewPatch(page, origPostBeforeEdits, ps.safeHtml);
+    patch.editingPostId = postToEdit.uniqueId;
   }
   else if (ps.replyToNr || isChat) {
     const postType = ps.anyPostType || PostType.ChatMessage;
     // Show an inline preview, where the reply will appear.
     patch = store_makeNewPostPreviewPatch(
         store, page, ps.replyToNr, ps.safeHtml, postType);
+    patch.replyingToPostNr = ps.replyToNr;
   }
 
   // @ifdef DEBUG
@@ -1067,6 +1069,7 @@ export function showEditsPreviewInPage(ps: ShowEditsPreviewParams, inWhichFrame?
   // @endif
 
   if (patch) {
+    patch.editorsPageId = ps.editorsPageId;
     patchTheStore(patch, () => {
       // The preview won't appear until a bit later, after the preview post
       // store patch has been applied — currently the wait-a-bit code is
@@ -1572,7 +1575,7 @@ function sendToEditorIframe(message) {
 }
 
 
-function sendToCommentsIframe(message, toWhichFrame?) {
+function sendToCommentsIframe(message, toWhichFrame?: DiscWin) {
   sendToIframesImpl(message, false, toWhichFrame);
 }
 

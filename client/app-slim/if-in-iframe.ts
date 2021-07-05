@@ -163,7 +163,7 @@ function onMessage(event) {
       ReactActions.editPostWithNr(postNr, fromIframe);
       break;
     case 'onEditorOpen':
-      // Sent from the embedded editor to the comments iframe.
+      // Sent from the embedded editor to the comments iframes.
       ReactActions.onEditorOpen(eventData);
       break;
     case 'handleEditResult':

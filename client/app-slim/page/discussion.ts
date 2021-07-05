@@ -1279,9 +1279,9 @@ const Thread = createComponent({
     const branchSidewaysClass = horizontalCss(childrenSideways);
 
     const isEditorsPage =
-        store.editorsPageId === page.pageId ||
-        // The embedded editor doesn't know about page ids (as of now). [EMBED0PG]
-        page.pageRole === PageRole.EmbeddedComments;
+        store.editorsPageId === page.pageId; /* ||
+        // The embedded editor doesn't know about page ids (as of now). [EMBED0PG] x rm tag
+        page.pageRole === PageRole.EmbeddedComments; */
 
     let replyingToElem;
     if (store.replyingToPostNr === post.nr && isEditorsPage) {
