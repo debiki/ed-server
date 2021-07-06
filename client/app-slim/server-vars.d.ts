@@ -1,40 +1,6 @@
 /// <reference path="model.ts" />
 
 
-interface PageSession  {
-  xsrfTokenIfNoCookies: string | undefined;
-
-  // Initialized when the page loads, by checking navigator.cookieEnabled.
-  canUseCookies?: boolean;
-
-  // This session id is available to client side Javascript, and can be stolen
-  // if there's an XSS vulnerability. So, it's going to have fewer capabilities
-  // than a http-only session when the Talkyard site is opened as the main window
-  // (rather than embedded in an iframe).
-  //
-  // It's needed because Safari and FF blocks 3rd party cookies, so
-  // we need to remember the login session in a non-cookie somehow.
-  //
-  // ADD_TO_DOCS
-  //
-  weakSessionId?: St;
-
-  // If the session is for an embedded comments iframe. REMOVE incl in sid instead, somehow.
-  sessType?: SessionType.AutoTokenSiteCustomSso;
-}
-
-interface __TyWinInterface extends Window {
-  tydyn?: { allIframePageIds: PageId[] };
-  typs: PageSession;
-  theStore: Store;
-  eds: ServerVars;
-}
-
-// RENAME to DiscWin.
-type MainWin = __TyWinInterface & typeof globalThis;
-type DiscWin = MainWin;
-
-
 // These variables are initialized in a certain <head><script>.  [5JWKA27]
 
 interface ServerVars {
