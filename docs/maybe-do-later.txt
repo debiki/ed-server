@@ -772,3 +772,6 @@ About how to write docs:
 [ios_bugs]
 Problems that happen only on iOS Safari (and Chrome, but all browsers are basically
 Safari on iOS). When works elsewhere, this might be bugs in iOS Safari.
+
+
+Upgr wdio 6 to 7. [wdio_6_to_7]
