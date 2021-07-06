@@ -112,5 +112,5 @@ const api = {
   }
 };
 
-export = api;
 
+export { ...api };
