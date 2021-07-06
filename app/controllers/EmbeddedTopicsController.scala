@@ -206,6 +206,7 @@ class EmbeddedTopicsController @Inject()(cc: ControllerComponents, edContext: Ed
           }
 
     val tpi = new EditPageTpi(request, PageType.EmbeddedComments,
+          // CLEAN_UP REMOVE these params, just keep  embeddingOrigin (not ..Url):
           anyEmbeddedPageId = anyRealPageId, anyDiscussionId = discussionId,
           anyEmbeddingUrl = Some(embeddingUrl),
           lazyCreatePageInCatId = lazyCreatePageInCatId.map(_.id))

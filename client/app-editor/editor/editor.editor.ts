@@ -189,17 +189,26 @@ export const Editor = createFactory<any, EditorState>({
   },
 
 
+  getDiscStore(): DiscStore {
+    const state: EditorState = this.state;
+    return state.forFrameStore || state.store; // [many_embcom_iframes]
+  },
+
+
   /// This is part of making the embedded editor work with many comment iframes
   /// at the same time. We clone the relevant discussion data, from the
   /// relevant embedded comments iframe. — If we're not in embedded iframes,
   /// we just return the React store of the current window as is (which is then
   /// the top window).
   ///
-  getDiscStore(forFrame?: DiscWin): DiscStore {
+  getOrCloneDiscStore(forFrame?: DiscWin): DiscStore {
     if (!eds.isInIframe) {
       // @ifdef DEBUG
       dieIf(forFrame, 'TyE507MWEG25');
       dieIf(window.top !== window, 'TyE6WMLE25');
+      // Should be in sync because of the debiki2.StoreListenerMixin.
+      // (I wonder if some race cond could make them different for a millisec?)
+      dieIf(this.state.store !== debiki2.ReactStore.allData(), 'TyE50MREJ35');
       // @endif
       return debiki2.ReactStore.allData();
     }
@@ -230,15 +239,30 @@ export const Editor = createFactory<any, EditorState>({
     // And 2) so that the data won't get changed "at any time" by the other iframe
     // — React.js wouldn't like that.
     //
-    const storeClone: DiscStore = _.cloneDeep({
-      me: discFrameStore.me,
-      embeddedOriginOrEmpty: discFrameStore.embeddedOriginOrEmpty,
-      currentPage: discFrameStore.currentPage,
-      currentPageId: discFrameStore.currentPageId,
-      currentCategories: discFrameStore.currentCategories,
-      usersByIdBrief: discFrameStore.usersByIdBrief || {},
-      pagesById: {},
-    });
+    let storeClone: DiscStore;
+    try {
+      storeClone = _.cloneDeep({
+        me: discFrameStore.me,
+        embeddedOriginOrEmpty: discFrameStore.embeddedOriginOrEmpty,
+        currentPage: discFrameStore.currentPage,
+        currentPageId: discFrameStore.currentPageId,
+        currentCategories: discFrameStore.currentCategories,
+        usersByIdBrief: discFrameStore.usersByIdBrief || {},
+        pagesById: {},
+      });
+    }
+    catch (ex) {
+      // Don't think this can happen, but let's wait and see for a while?
+      // DO_AFTER 2022-01-01 unwrap from try-catch (remvoe this catch {}).
+      if (!this.loggedCloneError) {
+        logW("Couldn't clone store in other iframe [TyECLONSTOR]", ex);
+        // @ifdef DEBUG
+        debugger;
+        // @endif
+        this.loggedCloneError = true;
+      }
+      storeClone = state.store;
+    }
 
     // We show the embedded editor for one discussion at a time, so we need
     // the current page, only.
@@ -479,10 +503,8 @@ export const Editor = createFactory<any, EditorState>({
       die(t.e.UploadMaxOneFile + " [TyM5JYW2]");  // INFO_LOG
     }
 
-    const state: EditorState = this.state;
-
     for (let file of files) {
-      const me: Myself = (state.forFrameStore || state.store).me;
+      const me: Myself = this.getDiscStore().me;
 
       // '**' can mean all allowed, for backw compat with old sites
       // that don't expect any upload file type restrictions.
@@ -701,11 +723,12 @@ export const Editor = createFactory<any, EditorState>({
     const state: EditorState = this.state;
     let postNrs = state.replyToPostNrs;
 
-    // If we're in the blog comments editor iframe, then, usernames are stored
-    // in the iframe with the embedded comments — the one with all comments.
-    // We'll then clone the parts we need of that iframe's Store,
-    // and remember in this.state.forFrameStore.
-    const discStore: DiscStore = this.getDiscStore(inFrame);
+    // If we're in the blog comments editor iframe, then, usernames are in a store
+    // in another iframe, namely the one with the comments (rather than this iframe
+    // with only the editor).
+    // We'll then clone the parts we need of that other store, and remember
+    // in this.state.forFrameStore.
+    const discStore: DiscStore = this.getOrCloneDiscStore(inFrame);
 
     if (inclInReply && postNrs.length) {
       // This means we've started replying to a post, and then clicked Reply
@@ -773,38 +796,19 @@ export const Editor = createFactory<any, EditorState>({
       postType = PostType.Flat;
     }
 
-    if (eds.isInEmbeddedEditor) {
-      try {
-        if (inFrame) {   // [many_embcom_iframes]
-          eds.embeddedPageId = inFrame.eds.embeddedPageId;
-          eds.embeddingUrl = inFrame.eds.embeddingUrl;
-          eds.embeddedPageAltId = inFrame.eds.embeddedPageAltId;
-          eds.lazyCreatePageInCatId = inFrame.eds.lazyCreatePageInCatId;
-        }
-      }
-      catch (ex) {
-        // Oh well.
-        if (!this.loggedCloneError) {
-          logW("Couldn't clone Partial<Store> from main iframe [TyECLONSTOR]", ex);
-          // @ifdef DEBUG
-          debugger;
-          // @endif
-          this.loggedCloneError = true;
-        }
-      }
-    }
-    else {
-      // Should be in sync because of the debiki2.StoreListenerMixin.
-      // (I wonder if some race cond could make them different for a millisec?)
-      // @ifdef DEBUG
-      dieIf(state.store !== discStore, 'TyE502MTSE83');
-      // @endif
-      void 0;
+    let forFrameStore: DiscStore | U;
+    if (eds.isInEmbeddedEditor && inFrame?.eds) {
+      // [many_embcom_iframes]
+      forFrameStore = discStore;
+      eds.embeddedPageId = inFrame.eds.embeddedPageId;
+      eds.embeddingUrl = inFrame.eds.embeddingUrl;
+      eds.embeddedPageAltId = inFrame.eds.embeddedPageAltId;
+      eds.lazyCreatePageInCatId = inFrame.eds.lazyCreatePageInCatId;
     }
 
     const newState: Partial<EditorState> = {
       forFrame: inFrame,
-      forFrameStore: eds.isInEmbeddedEditor ? discStore : undefined,
+      forFrameStore,
       anyPostType: postType,
       editorsCategories: discStore.currentCategories,
       editorsPageId: discStore.currentPageId || eds.embeddedPageId,
@@ -843,7 +847,7 @@ export const Editor = createFactory<any, EditorState>({
     else if (_.isEqual([NoPostId], postNrs)) writingWhat = WritingWhat.ChatComment;
 
     this.loadDraftAndGuidelines(
-          draftLocator, writingWhat, undefined, inFrame);
+          draftLocator, writingWhat, undefined, forFrameStore);
   },
 
 
@@ -856,12 +860,13 @@ export const Editor = createFactory<any, EditorState>({
       return;
 
     // If many comments iframes, load the post from the correct one. [many_embcom_iframes]
-    // (Need not copy any )
     if (inFrame?.eds) {
       eds.embeddedPageId = inFrame.eds.embeddedPageId;
       eds.embeddingUrl = inFrame.eds.embeddingUrl;
       eds.embeddedPageAltId = inFrame.eds.embeddedPageAltId;
-      this.setState({ forFrame: inFrame } as Partial<EditorState>);
+      const forFrameStore: DiscStore = this.getOrCloneDiscStore(inFrame);
+      const newState: Partial<EditorState> = { forFrame: inFrame, forFrameStore };
+      this.setState(newState);
     }
 
     // [manyiframes_pageid]
@@ -869,10 +874,10 @@ export const Editor = createFactory<any, EditorState>({
       const state: EditorState = this.state;
       if (this.isGone) return;
       if (state.forFrame !== inFrame) return;
-      const discStore: DiscStore = this.getDiscStore(inFrame);
       const draft: Draft | U = response.draft;
 
       // In case the draft was created when one wasn't logged in, then, now, set a user id.
+      const discStore: DiscStore = this.getDiscStore();
       if (draft && discStore.me) {
         draft.byUserId = discStore.me.id;
       }
@@ -883,7 +888,6 @@ export const Editor = createFactory<any, EditorState>({
 
       const newState: Partial<EditorState> = {
         anyPostType: null,
-        forFrameStore: eds.isInEmbeddedEditor ? discStore : undefined,
         editorsCategories: discStore.currentCategories, // [many_embcom_iframes]
         editorsPageId: response.pageId,
         editingPostNr: postNr,
@@ -907,7 +911,7 @@ export const Editor = createFactory<any, EditorState>({
     const store: Store = state.store;
     // This cannot happen in an embedded editor, currently.
     // @ifdef DEBUG
-    dieIf(state.forFrameStore, 'TyE502MHEARI0-1');
+    dieIf(state.forFrame, 'TyE502MHEARI0-1');
     // @endif
 
     let category: Category | U;
@@ -969,7 +973,7 @@ export const Editor = createFactory<any, EditorState>({
     const store: Store = state.store;
     // This cannot happen in an embedded editor, currently.
     // @ifdef DEBUG
-    dieIf(state.forFrameStore, 'TyE502MHEARI0-2');
+    dieIf(state.forFrame, 'TyE502MHEARI0-2');
     // @endif
 
     const newState: Partial<EditorState> = {
@@ -993,7 +997,7 @@ export const Editor = createFactory<any, EditorState>({
     const store: Store = state.store;
     // This cannot happen in an embedded editor, currently.
     // @ifdef DEBUG
-    dieIf(state.forFrameStore, 'TyE502MHEARI0-3');
+    dieIf(state.forFrame, 'TyE502MHEARI0-3');
     // @endif
     const newState: Partial<EditorState> = {
       editorsCategories: store.currentCategories,
@@ -1038,7 +1042,7 @@ export const Editor = createFactory<any, EditorState>({
     // the active Reply button(s).)
 
     const state: EditorState = this.state;
-    const store: DiscStore = state.forFrameStore || state.store;
+    const store: DiscStore = this.getDiscStore();
 
     // REFACTOR: Remove allFine? Not needed?
     const allFine = state.draftStatus <= DraftStatus.NeedNotSave &&
@@ -1077,35 +1081,45 @@ export const Editor = createFactory<any, EditorState>({
 
 
   loadDraftAndGuidelines: function(draftLocator: DraftLocator, writingWhat: WritingWhat,
-        pageRole?: PageRole, inFrame?: DiscWin) {
+        pageRole?: PageRole, inFrameStore?: DiscStore) {
 
     const setDraftAndGuidelines = (anyDraft?, anyGuidelines?) => {
       let draft = anyDraft || BrowserStorage.get(draftLocator);
       // Also try without any  pageId  or discussionId,  [draft_diid]
-      // in case pat started writing, before a page had been created,
+      // in case we started writing, before a page had been created,
       // or before there was a discussion id (maybe the site admin added later).
       if (!draft) {
         const hasDiscId = !!draftLocator.discussionId;
         const hasPageId = !isNoPage(draftLocator.pageId);
         // UX, minor: Could find all 3 drafts (if any) and pick the most recent one?
         if (hasDiscId) {
-          // Lookup by url path or page id, matching any discussion id.
-          // (Or maybe dont'?)
+          // Lookup by url path or page id, if the draft was saved before the
+          // embedded discussion had a discussion id assigned.
           const loc2 = { ... draftLocator };
           delete loc2.discussionId;
           draft = BrowserStorage.get(loc2);
         }
         if (!draft && hasPageId) {
-          // Lookup by url path or discussion id, matching any page id.
+          // Lookup by url path or discussion id, if draft created before
+          // the page existed, that is, when the page id was sitll empty/no-page-id.
           const loc2 = { ... draftLocator };
-          delete loc2.pageId;
+          // Replies always have page ids.
+          loc2.pageId = EmptyPageId;
           draft = BrowserStorage.get(loc2);
+          // But, later on, new forum topics, don't (since don't yet exist).
+          // (New forum topics cannot have embedded discussion ids, so this
+          // not needed in the last if{} below.))
+          if (!draft) {
+            delete loc2.pageId;
+            draft = BrowserStorage.get(loc2);
+          }
         }
         if (!draft && hasDiscId && hasPageId) {
-          // Lookup by url path, matching any discussion id and any page id.
+          // Lookup by url path, if draft created before the emb comments page existed,
+          // and before it had a discussion id.
           const loc2 = { ... draftLocator };
           delete loc2.discussionId;
-          delete loc2.pageId;
+          loc2.pageId = EmptyPageId;
           draft = BrowserStorage.get(loc2);
         }
       }
@@ -1137,11 +1151,11 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const discStore: DiscStore = this.getDiscStore(inFrame);
+    const store: DiscStore = inFrameStore || state.store;
 
     // For embedded comments iframes, the page might not yet have been created,
     // and the categoryId might be unknown / undefined.
-    const page: Page = discStore.currentPage;
+    const page: Page = store.currentPage;
     const categoryId: CategoryId | undefined = draftLocator.categoryId || page.categoryId;
     const pageType: PageRole = pageRole || page.pageRole || (
       eds.isInEmbeddedEditor ? PageRole.EmbeddedComments : die('TyE305WKD'));
@@ -1163,7 +1177,7 @@ export const Editor = createFactory<any, EditorState>({
       logD("Done loading draft and guidelines.");
       const state: EditorState = this.state;
       if (this.isGone || !state.visible) return;
-      if (state.forFrame !== inFrame) return;
+      if (state.forFrameStore !== inFrameStore) return;
       let guidelines = undefined;
       if (guidelinesSafeHtml) {
         const guidelinesHash = hashStringToNumber(guidelinesSafeHtml);
@@ -1345,7 +1359,7 @@ export const Editor = createFactory<any, EditorState>({
     const store: Store = state.store;
     // This cannot happen in an embedded editor, currently.
     // @ifdef DEBUG
-    dieIf(state.forFrameStore, 'TyE502MHEARI0-4');
+    dieIf(state.forFrame, 'TyE502MHEARI0-4');
     // @endif
 
     const settings: SettingsVisibleClientSide = store.settings;
@@ -1420,8 +1434,7 @@ export const Editor = createFactory<any, EditorState>({
     const state: EditorState = this.state;
     const anyPostType: PostType | U = state.anyPostType;
     const locator: DraftLocator = { draftType: DraftType.Scratch };
-    const discStore: DiscStore =
-            eds.isInEmbeddedEditor ?  this.getDiscStore() : state.store;
+    const discStore: DiscStore = this.getDiscStore();
 
     // If we're in an iframe, the page might have gotten lazy-created; then
     // we need to use eds.embeddedPageId.
@@ -1621,7 +1634,7 @@ export const Editor = createFactory<any, EditorState>({
       return;
     }
 
-    const me: Myself = (state.forFrameStore || state.store).me;
+    const me: Myself = this.getDiscStore().me;
     const draftToSave: Draft = { ...draftOldOrEmpty, text, title };
 
     // If this is an embedded comments discussion, and the discussion page hasn't
@@ -1965,6 +1978,9 @@ export const Editor = createFactory<any, EditorState>({
       backdropOpacity: 0,
     });
     eds.embeddedPageId = EmptyPageId;
+    // eds.embeddingUrl — probably stays the same
+    eds.embeddedPageAltId = null;
+    eds.lazyCreatePageInCatId = null;
   },
 
   callOnDoneCallback: function(saved: boolean) {
@@ -2015,7 +2031,7 @@ export const Editor = createFactory<any, EditorState>({
 
   render: function() {
     const state: EditorState = this.state;
-    const store: DiscStore = state.forFrameStore || state.store;
+    const store: DiscStore = this.getDiscStore();
 
     // Is undef, if in the API section, e.g. typing a direct message to a user.
     const editorsPage: Page | undefined =

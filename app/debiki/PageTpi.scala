@@ -196,8 +196,8 @@ class SiteTpi protected (
           "embeddingUrl" -> JsStringOrNull(anyEmbeddingUrl),  //  @Html(embeddingUrlOrUndefined),
           "embeddedPageId" -> JsStringOrNull(anyEmbeddedPageId),
           "embeddedPageAltId" -> JsStringOrNull(anyDiscussionId), // @Html(discussionIdOrUndefined),
-          // ----------------------
           "lazyCreatePageInCatId" -> JsNumberOrNull(lazyCreatePageInCatId), //@Html(lazyCreatePageInCatId),
+          // ----------------------
 
           "assetUrlPrefix" -> assetUrlPrefix,
           "uploadsUrlPrefixCommonmark" -> uploadsUrlPrefix,
