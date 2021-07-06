@@ -21,8 +21,6 @@
 
 /// <reference path="comments-count.ts" />
 
-// CR_MISSING
-
 
 declare const debiki: any | undefined;
 declare const Bliss: any | undefined;
@@ -132,10 +130,9 @@ if (insecureSomethingErrMsg) {
 tyns.fetchAndFillInCommentCounts(serverOrigin);
 
 
-var oneTimeLoginSecret;
-var postNrToFocus;  // RENAME to ...AfterCommentsLoaded
+let oneTimeLoginSecret: St | U;
+let postNrToFocus: PostNr | U;  // RENAME to ...AfterCommentsLoaded
 
-let allUrlParams = '';
 let loadWeinre: Bo | U;
 
 const scriptVersionQueryParam = '&scriptV=2';
@@ -143,19 +140,24 @@ const scriptVersionQueryParam = '&scriptV=2';
 const EditorIframeNr = 0;
 const FirstCommentsIframeNr = 1;
 // 2, 3, 4 etc are other comments iframes.
-let numCommentsIframes = 0;
+let numDiscussions = 0;
 
 let sessionIframeInited: Bo | U;
-let sessionIframe: HTMLIFrameElement | U | Nl;
+let sessionIframe: HIframeElm | U | Nl;
 
-let commentsElems: HTMLCollectionOf<Element> | U | Nl;
+let commentsElems: HTMLCollectionOf<Elm> | U | Nl;
 let loadingElms: HElm[] = [];
-let iframeElms: HTMLIFrameElement[] = [];
+let iframeElms: HIframeElm[] = [];
 let iframesInited: (Bo | U)[] = [];
 let pendingIframeMessages: Ay[][] = [];
 
+let editorIframe: HIframeElm | U;
+let editorWrapper: HElm | U;
+let editorPlaceholder: HElm | U;
+
 
 /*
+Maybe use MutationObserver — but probaly, don't, not needed?
 // (MutationObserver won't work in Opera Mini from 2015, but that's a while ago.)
 const mutationObserver = new MutationObserver(function (mutations, observer) {
   for (const mutation of mutations) {
@@ -175,10 +177,6 @@ mutationObserver.observe(document.body, { subtree: true, childList: true });
 */
 
 
-
-var editorIframe;
-var editorWrapper;
-var editorPlaceholder;
 
 // We store a weak session in localStorage, if 3rd party cookies disabled.
 // It's fairly ok to use localStorage in our case, see:
@@ -245,7 +243,7 @@ function createSessionFrame() {
   sessionIframe = Bliss.create('iframe', {
     id: 'talkyard-session',
     name: 'edComments',
-    title: "Empty comments helper frame",
+    title: "Talkyard comments helper iframe",
     src: serverOrigin + '/-/session-iframe',
     height: 0, // don't `hide()` [.hdn_iframe]
     'aria-hidden': true,
@@ -281,30 +279,25 @@ function loadFirstCommentsIframe() {
   if (!commentsElems.length)
     return;
 
-  numCommentsIframes = commentsElems.length;
-  debugLog(`Found ${numCommentsIframes} Ty comment elems`);
+  numDiscussions = commentsElems.length;
+  debugLog(`Found ${numDiscussions} Ty comment elems`);
 
-  //const numPlusOne = numCommentsIframes + 1;
-  //loadingElms = new Array(numPlusOne);
-  //iframeElms = new Array(numPlusOne);
-  //iframesInited = new Array(numPlusOne);
-  //pendingIframeMessages = new Array(numPlusOne);
-
-  intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numCommentsIframes > 1);
+  intCommentIframe(commentsElems[0], FirstCommentsIframeNr, numDiscussions > 1);
 }
 
 
 
+// It's simpler to debug, if waiting with creating additional comments iframes
+// until the first one has been created?
 function loadRemainingCommentIframes() {
   debugLog("loadRemainingCommentIframes()");
   if (!commentsElems)
     return;
 
-  // These wants to access the first, "main", comments iframe.
-  // So don't create them, until that one has been inited.
+  // But skip index 0 — that iframe has been loaded already.
   for (let i = 1; i < commentsElems.length; ++i) {
     intCommentIframe(
-          commentsElems[i], i + FirstCommentsIframeNr, numCommentsIframes > 1);
+          commentsElems[i], i + FirstCommentsIframeNr, numDiscussions > 1);
   }
 
   // No need to hang on to the comments elems.
@@ -325,15 +318,16 @@ function addCommentsIframe(ps: { appendInside: HElm, discussionId: St }): HElm {
     'data-discussion-id': ps.discussionId,
   });
 
+  // (At least iframesInited needs to be appended to. [.if_initd])
   loadingElms.push(undefined);
   iframeElms.push(undefined);
   iframesInited.push(undefined);
   pendingIframeMessages.push(undefined);
+  numDiscussions = iframeElms.length - FirstCommentsIframeNr;
 
   Bliss.inside(wrapperDiv, ps.appendInside);
-  numCommentsIframes = iframeElms.length - FirstCommentsIframeNr;
-  const commentsIframeNr = iframeElms.length - 1;
-  intCommentIframe(wrapperDiv, commentsIframeNr, numCommentsIframes >= 2);
+  const commentIframeNr = iframeElms.length - 1;
+  intCommentIframe(wrapperDiv, commentIframeNr, numDiscussions >= 2);
   return wrapperDiv;
 }
 
@@ -343,16 +337,19 @@ function forgetRemovedCommentIframes() {
   for (let i = iframeElms.length - 1; i >= 0; --i) {
     const iframe = iframeElms[i];
     if (!iframe.isConnected)  {
-      iframeElms.splice(i, 1);
       loadingElms.splice(i, 1);
+      iframeElms.splice(i, 1);
       iframesInited.splice(i, 1);
       pendingIframeMessages.splice(i, 1);
-      numCommentsIframes = iframeElms.length - FirstCommentsIframeNr;
+      numDiscussions = iframeElms.length - FirstCommentsIframeNr;
     }
   }
 }
 
 
+
+/// Loads newly added embedded discussions, without the embedding page having
+/// to call talkyardAddCommentsIframe(..).
 /*
 function loadNewCommentIframes(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   const newCommentElems = document.querySelectorAll('.talkyard-comments:not(.ty_IfrCr)');
@@ -373,6 +370,8 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   debugLog(`intCommentIframe(..., iframeNr = ${iframeNr}, ...)`);
 
+  // The server wants the embedding URL, to know if it should add 'localhost'
+  // to the allowed frame-ancestors, for development. [embng_url]
   var embeddingUrl = window.location.origin + window.location.pathname + window.location.search;
   var embeddingUrlParam = 'embeddingUrl=' + embeddingUrl;
 
@@ -394,7 +393,7 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   if (/[\t\r\n]/.test(discussionId)) {
     var errorMessage = "Bad discussion id: " + discussionId + ' [TyEEMDIID]';
     debugLog(errorMessage);  // could log error level
-    if (manyCommentsIframes) return false;
+    if (manyCommentsIframes) return false;  // other iframes might work
     throw Error(errorMessage);
   }
   var discIdParam = discussionId ? `discussionId=${discussionId}&` : '';
@@ -432,7 +431,7 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   const logLevelParam = talkyardLogLevel ? `&logLevel=${talkyardLogLevel}` : '';
 
-  allUrlParams =
+  const allUrlParams =
           edPageIdParam + discIdParam + catRefParam + embeddingUrlParam +
           htmlClassParam + logLevelParam + scriptVersionQueryParam;
 
@@ -448,7 +447,7 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
   // no messages at all from it.  [.hdn_iframe]
   const commentsIframe = Bliss.create('iframe', {
     id: 'ed-embedded-comments',
-    name: 'edComments-' + iframeNr, // (iframeNr >= 2 ? '-' + iframeNr : ''),
+    name: 'edComments-' + iframeNr,
     className: 'p_CmtsIfr ty_CmtsIfr',   // DEPRECATE old name p_CmtsIfr
     // A title attr, for better accessibility. See: https://www.w3.org/TR/WCAG20-TECHS/H64.html
     title: iframeTitle || "Comments",
@@ -504,8 +503,6 @@ function intCommentIframe(commentsElem, iframeNr: Nr, manyCommentsIframes: Bo) {
 
   Bliss.start(loadingCommentsElem, commentsElem);
   loadingElms[iframeNr] = loadingCommentsElem;
-
-  return true;
 }
 
 
@@ -542,22 +539,10 @@ function createEditorIframe() {
   Bliss.inside(editorWrapper, document.body);
   debugLog("inserted editorWrapper");
 
-  // The server needs the embedding URL, to know if it should
+  // [embng_url]
   let editorIframeUrl =
         `${serverOrigin}/-/embedded-editor?embeddingUrl=${location.origin}` +
         scriptVersionQueryParam;
-  /*  ${allUrlParams}`; //
-  if (manyCommentsIframes) {
-    // Add just log level?
-    // For now, so works as before, if just 1 comments iframe.
-    editorIframeUrl += allUrlParams;
-  }
-  else {
-    // Backw compat: Incl same params as for the comments iframe.
-    // Later: Could incl just log level here too, but for now (May 2021) too untested.
-    editorIframeUrl += allUrlParams;
-  }
-  */
 
   if (loadWeinre) {
     editorIframeUrl += location.hash;
@@ -592,6 +577,10 @@ function createEditorIframe() {
 
 function removeCommentsAndEditor() {
   debugLog("removeCommentsAndEditor()");
+
+  postNrToFocus = undefined;
+  oneTimeLoginSecret = undefined;
+
   for (let i = 0; i < iframeElms.length; ++i) {
     const iframe = iframeElms[i];
     if (iframe) {
@@ -602,10 +591,12 @@ function removeCommentsAndEditor() {
       loadingText.remove();
     }
   }
+
   loadingElms.length = 0;
   iframeElms.length = 0;
   iframesInited.length = 0;
   pendingIframeMessages.length = 0;
+  numDiscussions = 0;
 
   if (editorIframe) {
     //editorIframe.remove();  // done above
@@ -645,48 +636,11 @@ jQuery(function($) {   // xx
 
 
 function messageCommentsIframeNewWinTopSize() {
-  /*
-  // Dupl code (6029084583).
-  // Remove this; reuse sendToIframeImpl instead?
-
-  const commentsIframe = iframeElms[iframeNr];
-  const isInited = iframesInited[iframeNr];
-
-  if (!commentsIframe) {
-    // Not yet created, or maybe got deleted by some other Javascript.
-    return;
-  }
-
-  // Wait until the <iframe> is "alive".
-  // Posting a message when the html <iframe> has been created but before it's been fully
-  // loaded, as of 2019-03 makes Chrome send the message to this parent frame instead,
-  // resulting in errors like these in the dev console:
-  //
-  //   Failed to execute 'postMessage' on 'DOMWindow': The target origin
-  //   provided ('https://comments-for-the-blog-address.talkyard.net') does not match
-  //   the recipient window's origin ('https://the-blog-address.com').
-  //
-  // Explanation: postMessage tried to send to https://comments-for... (the target origin) but
-  // instead Chrome sent the message to the main window https://the-blog-address
-  // (the recipient origin).
-  //
-  // This error typically does not happen on localhost, because then the iframe loads
-  // quickly. Instead, it happens in production, sometimes only. To reproduce, on localhost,
-  // set a breakpoint in the app server, in EmbeddedTopicsController.showTopic [5BRW02],
-  // to block the iframe from loading, and then you can reproduce this error.
-  //
-  if (!isInited) {
-    setTimeout(function() {
-      messageCommentsIframeNewWinTopSize(iframeNr);
-    }, 1000);
-    return;
-  }
-  */
   sendToComments(calcSizes);
 }
 
 
-function calcSizes(commentsIframe: HTMLIFrameElement): St {
+function calcSizes(commentsIframe: HIframeElm): St {
   var rect = commentsIframe.getBoundingClientRect();
   // We're interested in the height part of the viewport that is used for the iframe.
 
@@ -752,7 +706,7 @@ function onMessage(event) {
     return;
   }
 
-  const anyFrameAndNr = findIframeThatSent(event);
+  const anyFrameAndNr: [HIframeElm, Nr] | U = findIframeThatSent(event);
   if (!anyFrameAndNr)
     return;
 
@@ -794,7 +748,7 @@ function onMessage(event) {
       // If something prevented the editor from loading, let's continue anyway,
       // so the comments at least appear, although wouldn't be possible to reply.
       // (So start at i = FirstCommentsIframeNr, not 0.)
-      for (let i = FirstCommentsIframeNr; i < iframesInited.length; ++i) {
+      for (let i = FirstCommentsIframeNr; i < iframesInited.length; ++i) { // [.if_initd]
         if (!iframesInited[i])
           return;
       }
@@ -815,10 +769,10 @@ function onMessage(event) {
 
       // Can we login? Already logged in?
       //
-      // Log in via only one comments iframe — otherwise there'd be races
+      // Log in via the first comments iframe only — otherwise there'd be races
       // and unnecessarily many server requests.
       //
-      if (iframeNr !== FirstCommentsIframeNr) {
+      if (iframeNr !== FirstCommentsIframeNr) {  // OOps, might be true, won't ever login
         // Noop.
       }
       else if (talkyardAuthnToken) {
@@ -873,7 +827,7 @@ function onMessage(event) {
       // then that'd reduce the height we send to the iframe.
       if (isFromCommentsIframe) {
         setTimeout(
-              messageCommentsIframeNewWinTopSize);
+              messageCommentsIframeNewWinTopSize);  // to all?
       }
       // Remove the "loading comments" info text.
       var loadingText = loadingElms[iframeNr];
@@ -1019,7 +973,7 @@ function setIframeSize(iframe, dimensions) {
 
 
 /// Returns: [iframe, index] or undefined.
-function findIframeThatSent(event): [HTMLIFrameElement, Nr] | U {  // [find_evt_ifrm]
+function findIframeThatSent(event): [HIframeElm, Nr] | U {  // [find_evt_ifrm]
   // See http://stackoverflow.com/a/18267415/694469
   for (let i = 0; i < iframeElms.length; ++i) {
     const comIfr = iframeElms[i];
@@ -1032,14 +986,14 @@ function findIframeThatSent(event): [HTMLIFrameElement, Nr] | U {  // [find_evt_
 
 
 function sendToOtherIframes(message, skipIframeNr: Nr) {
-  // For now, send to all. Later, could inspect the message and send only
-  // to the affected comments iframes (e.g. a matching discussion id).
+  // Send to all (except for the one to skip). If we have a specific iframe
+  // in mind, then we postMessage() to that one directly instead. [post_dir_2_ifr]
   for (let i = 0; i < iframeElms.length; ++i) {
     if (i === skipIframeNr) {
       continue;
     }
-    const commentsIframe = iframeElms[i];
-    sendToOneIframe(commentsIframe, message);
+    const otherIframe = iframeElms[i];
+    sendToOneIframe(otherIframe, message);
   }
 }
 
@@ -1078,9 +1032,6 @@ function sendToOneIframe(iframe, message: any | null, retryNr: Nr = 0) {
 
   // Sometimes one iframe comes alive and wants to message the other one,
   // before that other iframe is ready.
-  // [E2EBUG] it's not impossible that an e2e test browser super quickly clicks something,
-  // before any pending message has been delivered?  This'd be harmless — would only
-  // affect e2e tests; humans aren't that fast.
   if (message) {
     pendingMessages.push(message);
   }
@@ -1088,6 +1039,24 @@ function sendToOneIframe(iframe, message: any | null, retryNr: Nr = 0) {
   if (!pendingMessages.length)
     return;
 
+  // Wait until the <iframe> is "alive".
+  // Posting a message when the html <iframe> has been created but before it's been fully
+  // loaded, as of 2019-03 made Chrome send the message to this parent window instead,
+  // resulting in errors like these in the dev console:
+  //
+  //   Failed to execute 'postMessage' on 'DOMWindow': The target origin
+  //   provided ('https://comments-for-the-blog-address.talkyard.net') does not match
+  //   the recipient window's origin ('https://the-blog-address.com').
+  //
+  // Explanation: postMessage tried to send to https://comments-for... (the target origin)
+  // but instead Chrome sent the message to the top window, https://the-blog-address
+  // (the recipient origin).
+  //
+  // This error typically does not happen on localhost, because then the iframe loads
+  // quickly. Instead, it happens in production, sometimes only. To reproduce, on localhost,
+  // set a breakpoint in the app server, in EmbeddedTopicsController.showTopic [5BRW02],
+  // to block the iframe from loading, and then you can reproduce this error.
+  //
   if (!iframeInited) {
     setTimeout(function() {
       // Maybe the iframe is gone, was removed before it got inited?
@@ -1172,7 +1141,7 @@ function scrollComments(rectToScrollIntoView, options /* CalcScrollOpts */) {
 
   // This currently works only with one single comments iframe — if more,
   // then, currently we don't know which one to scroll.
-  if (numCommentsIframes > 1)
+  if (numDiscussions > 1)
     return;
 
   const commentsIframe = iframeElms[FirstCommentsIframeNr];
@@ -1221,7 +1190,7 @@ function setEditorMaximized(maximized) {
     oldHeight = editorWrapper.style.height;
     oldBorderTop = editorWrapper.style.borderTop;
     oldPaddingTop = editorWrapper.style.paddingTop;
-    editorWrapper.style.top = 0; // bottom is 0 already
+    editorWrapper.style.top = '0px'; // bottom is 0 already
     editorWrapper.style.height = 'auto';
     editorWrapper.style.borderTop = 'none';
     editorWrapper.style.paddingTop = 'none';

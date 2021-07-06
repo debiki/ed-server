@@ -99,3 +99,6 @@ describe(`embcom.many-comment-iframes-same-page.2br  TyTE2E50RMF24S`, () => {
 // delete draft,
 // or post draft, in 111 — won't affect 222.
 
+
+// forgetRemovedCommentIframes
+// talkyardAddCommentsIframe(..)

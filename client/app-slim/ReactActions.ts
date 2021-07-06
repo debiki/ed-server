@@ -1610,7 +1610,7 @@ function sendToIframesImpl(message, toEditor?: Bo, toWhichFrame?: Window) {
       // we're posting to another Talkyard iframe on the same server (same origin).
       const targetOrigin = !sendDirectly || toWhichFrame === parent ?
               eds.embeddingOrigin : location.origin;
-      win.postMessage(JSON.stringify(message), targetOrigin);
+      win.postMessage(JSON.stringify(message), targetOrigin);  // [post_dir_2_ifr]
     }
     catch (ex) {
       // Don't propagate this. Probably better to let the current frame continue
