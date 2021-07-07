@@ -14,12 +14,12 @@ function toPrettyString(sth): string {
 const tyAssert = {
   ...assert,
 
-  that: (test, message: string, sth?) => {
+  that: (test, message?: St, sth?) => {
     tyAssert.ok(test, message, sth);
   },
 
-  ok: (test, message: string, sth?) => {
-    const wholeMessage = message + (sth ? toPrettyString(sth) : '');
+  ok: (test, message?: St, sth?) => {
+    const wholeMessage = (message || '') + (sth ? toPrettyString(sth) : '');
     assert.ok(test, wholeMessage);
   },
 
