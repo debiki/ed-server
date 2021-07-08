@@ -265,11 +265,18 @@ export type TyAllE2eTestBrowsers = TyE2eTestBrowser;
 export class TyE2eTestBrowser {
 
   #br: WebdriverIOSync.Browser;
+  #name: St;
 
-  constructor(aWdioBrowser: WebdriverIOSync.Browser) {
+  constructor(aWdioBrowser: WebdriverIOSync.Browser, name: 'brA' | 'brB' | 'brC' | 'brAll') {
     dieIf(!aWdioBrowser?.getPageSource,
-        `Not a Wdio browser:  ${JSON.stringify(aWdioBrowser)}  [TyE2E7J02SAD35]`);
+        `Error creating Wdio browser ${name}, this is not a browser: ${
+                JSON.stringify(aWdioBrowser)}  [TyE2E7J02SAD35]`
+        + (brNr <= 1 ? '' :
+            "\nTo use two or more browser, be sure to include '2br' or '3br' etc " +
+            "when you type the test file name — otherwise just 1 browser gets created; " +
+            "the other ones would be undefined"));
     this.#br = aWdioBrowser;
+    this.#name = name;
   }
 
   reloadSession(ps: { andGoTo?: St } = {}) {
