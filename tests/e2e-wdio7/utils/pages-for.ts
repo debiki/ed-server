@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import { IsWhere } from '../test-types';
 
 
 // Why are many WebdriverIO's functions reimplemented here?
@@ -192,9 +193,9 @@ function allBrowserValues(result) {
 }
 
 
-function tryOrIfWinCloses<R>(toTry: () => R, ifWinCloses: R | U): R {
+async function tryOrIfWinCloses<R>(toTry: () => R, ifWinCloses: R | U): R {
   try {
-    return toTry();
+    return await toTry();
   }
   catch (ex) {
     if (!isWindowClosedException(ex)) {
@@ -385,44 +386,44 @@ export class TyE2eTestBrowser {
       return this.#br.getUrl().replace(/#.*$/, '');;
     }
 
-    urlPathQueryHash(): string {
-      return this.#br.execute(function() {
+    async urlPathQueryHash(): Pr<St> {
+      return await this.#br.execute(function() {
         return location.pathname + location.search + location.hash;
       });
     }
 
-    urlPath(): string {
-      return this.#br.execute(function() {
+    async urlPath(): Pr<St> {
+      return await this.#br.execute(function() {
         return location.pathname;
       });
     }
 
-    deleteCookie(cookieName: string) {
-      this.#br.deleteCookie(cookieName);
+    async deleteCookie(cookieName: string) {
+      await this.#br.deleteCookie(cookieName);
     }
 
-    deleteAllCookies() {
-      this.#br.deleteAllCookies();
+    async deleteAllCookies() {
+      await this.#br.deleteAllCookies();
     }
 
-    execute<T>(script: ((...args: any[]) => T), ...args: any[]): T {
-      return this.#br.execute.apply(this.#br, arguments);
+    async execute<T>(script: ((...args: any[]) => T), ...args: any[]): Pr<T> {
+      return await this.#br.execute.apply(this.#br, arguments);
     }
 
-    refresh() {
-      this.#br.refresh();
+    async refresh() {
+      await this.#br.refresh();
     }
 
     // Change all refresh() to refresh2, then remove '2' from name.
     // (Would need to add  waitForPageType: false  anywhere? Don't think so?)
-    refresh2(ps: { isWhere?: IsWhere.EmbeddedPagesListPage } = {}) {
+    async refresh2(ps: { isWhere?: IsWhere.EmbeddedPagesListPage } = {}) {
       this.#br.refresh();
       if (ps.isWhere) this.#isWhere = ps.isWhere;
-      else this.__updateIsWhere();
+      else await this.__updateIsWhere();
     }
 
-    back() {
-      this.#br.back();
+    async back() {
+      await this.#br.back();
     }
 
 
@@ -476,20 +477,20 @@ export class TyE2eTestBrowser {
       this.go2(url, { ...opts, waitForPageType: false });
     }
 
-    go2(url: string, opts: { useRateLimits?: boolean, waitForPageType?: false,
+    async go2(url: string, opts: { useRateLimits?: boolean, waitForPageType?: false,
           isExternalPage?: true, willBeWhere?: IsWhere } = {}) {
 
       let shallDisableRateLimits = false;
 
-      this.#firstWindowHandle = this.#br.getWindowHandle();
+      this.#firstWindowHandle = await this.#br.getWindowHandle();
 
       if (url[0] === '/') {
         // Local url, need to add origin.
 
         // Backw compat: wdio v4 navigated relative the top frame (but wdio v6 doesn't).
-        this.switchToAnyParentFrame();
+        await this.switchToAnyParentFrame();
 
-        try { url = this._findOrigin() + url; }
+        try { url = await this._findOrigin() + url; }
         catch (ex) {
           dieIf(ex.message?.indexOf('No_origin_') >= 0,
               `When opening the first page: ${url}, you need to specify the server origin [TyE7UKHW2]`);
@@ -511,7 +512,7 @@ export class TyE2eTestBrowser {
       const message = `Go: ${url}${shallDisableRateLimits ? "  & disable rate limits" : ''}`;
       logServerRequest(message);
       try {
-        this.#br.navigateTo(url);
+        await this.#br.navigateTo(url);
       }
       catch (ex) {
         const exStr = ex.toString();
@@ -540,12 +541,12 @@ export class TyE2eTestBrowser {
         this.#isOnEmbeddedCommentsPage = false;
       }
       else {
-        this.__updateIsWhere();
+        await this.__updateIsWhere();
       }
 
 
       if (shallDisableRateLimits) {
-        this.disableRateLimits();
+        await this.disableRateLimits();
       }
     }
 
@@ -553,35 +554,35 @@ export class TyE2eTestBrowser {
     isWhere(): IsWhere { return this.#isWhere }
 
 
-    updateIsWhere() {
-      this.__updateIsWhere();
+    async updateIsWhere() {
+      await this.__updateIsWhere();
     }
 
 
-    __updateIsWhere() {
+    async __updateIsWhere() {
       // .DW = discussion / topic list page.  .btn = e.g. a Continue-after-having-verified
       // -one's-email-addr page.
       // ('ed-comments' is old, deprecated, class name.)
-      this.waitForExist('.DW, .talkyard-comments, .ed-comments, .btn');
+      await this.waitForExist('.DW, .talkyard-comments, .ed-comments, .btn');
       this.#isOnEmbeddedCommentsPage =
-          this.$('.talkyard-comments').isExisting() ||
-          this.$('.ed-comments').isExisting();
+          await (await this.$('.talkyard-comments')).isExisting() ||
+          await (await this.$('.ed-comments')).isExisting();
       this.#isWhere = this.#isOnEmbeddedCommentsPage ? IsWhere.EmbeddingPage : IsWhere.Forum;
     }
 
 
-    goAndWaitForNewUrl(url: string) {
+    async goAndWaitForNewUrl(url: St) {
       logMessage("Go: " + url);
-      this.rememberCurrentUrl();
-      this.#br.url(url);
-      this.waitForNewUrl();
+      await this.rememberCurrentUrl();
+      await this.#br.url(url);
+      await this.waitForNewUrl();
     }
 
 
-    disableRateLimits() {
+    async disableRateLimits() {
       // Old, before I added the no-3rd-party-cookies tests.
       // Maybe instead always: server.skipRateLimits(siteId)  ?
-      this.#br.execute(function(pwd) {
+      await this.#br.execute(function(pwd) {
         var value =
             "esCoE2eTestPassword=" + pwd +
             "; expires=Fri, 31 Dec 9999 23:59:59 GMT";
@@ -595,9 +596,9 @@ export class TyE2eTestBrowser {
     }
 
 
-    pause(millis: number) {
+    async pause(millis: number) {
       logBoring(`Pausing ${millis} ms...`);
-      this.#br.pause(millis);
+      await this.#br.pause(millis);
     }
 
     // The real waitUntil doesn't work, the first test makes any  $('sth')
@@ -1369,9 +1370,9 @@ export class TyE2eTestBrowser {
           return false;
         }
 
-        this.#br.pause(pollInterval || 50);
+        await this.#br.pause(pollInterval || 50);
 
-        const locationLater = this.getBoundingClientRect(buttonSelector, { mustExist: true });
+        const locationLater = await this.getBoundingClientRect(buttonSelector, { mustExist: true });
         if (location.y !== locationLater.y || location.x !== locationLater.x) {
           problem = `Keeps moving and moving: '${buttonSelector}' [EdE7KFYU0]`;
           return false;
@@ -1384,20 +1385,24 @@ export class TyE2eTestBrowser {
     }
 
 
-    count(selector: St): Nr {
-      return tryOrIfWinCloses(() => this.$$(selector).length, undefined);
+    async count(selector: St): Pr<Nr> {
+      return tryOrIfWinCloses(async () => (await this.$$(selector)).length, undefined);
     }
 
 
-    isExisting(selector: St): Bo {
-      return tryOrIfWinCloses(() => this.$(selector).isExisting(), undefined);
+    async isExisting(selector: St): Pr<Bo> {
+      return await tryOrIfWinCloses(async () =>
+              await (await this.$(selector)).isExisting(), undefined);
     }
 
 
-    isEnabled(selector: St): Bo {
-      const elem: WElm = this.$(selector);
+    async isEnabled(selector: St): Pr<Bo> {
+      const elem: WElm = await this.$(selector);
       // Sometimes these methods are missing, why?  [MISSINGFNS]
-      const enabled = elem?.isExisting?.() && elem.isDisplayed?.() && elem.isEnabled?.();
+      const enabled =
+              (await elem?.isExisting?.()) &&
+              (await elem.isDisplayed?.()) &&
+              (await elem.isEnabled?.());
       return !!enabled;
     }
 
@@ -1604,10 +1609,10 @@ export class TyE2eTestBrowser {
       });
     }
 
-    waitForExist(selector: string, ps: WaitPs & { howMany?: number } = {}) {
-      this.waitUntil(() => {
-        const elem = this.$(selector);
-        if (elem && elem.isExisting?.())
+    async waitForExist(selector: string, ps: WaitPs & { howMany?: number } = {}) {
+      this.waitUntil(async () => {
+        const elem = await this.$(selector);
+        if (elem && elem.isExisting && (await elem.isExisting()))
           return true;
       }, {
         ...pluckWaitPs(ps),
@@ -1615,18 +1620,18 @@ export class TyE2eTestBrowser {
       });
 
       if (ps.howMany) {
-        this.waitForExactly(ps.howMany, selector);
+        await this.waitForExactly(ps.howMany, selector);
       }
     }
 
-    waitForGone(selector: St, ps: WaitPs = {}) {
-      this.waitUntilGone(selector, ps);
+    async waitForGone(selector: St, ps: WaitPs = {}) {
+      await this.waitUntilGone(selector, ps);
     }
 
-    tryClickNow(selector: St): ClickResult {
-      if (!this.isExisting(selector))
+    async tryClickNow(selector: St): Pr<ClickResult> {
+      if (!(await this.isExisting(selector)))
         return 'CouldNotClick';
-      return this.waitAndClick(selector, { timeoutMs: 500, timeoutIsFine: true });
+      return await this.waitAndClick(selector, { timeoutMs: 500, timeoutIsFine: true });
     }
 
     async waitAndClick(selector: St, opts: WaitAndClickPs = {}): Pr<ClickResult> {
@@ -1634,13 +1639,13 @@ export class TyE2eTestBrowser {
     }
 
 
-    waitAndClickFirst(selector: St, opts: WaitAndClickPs = {}): ClickResult {
-      return this._waitAndClickImpl(selector, { ...opts, clickFirst: true });
+    async waitAndClickFirst(selector: St, opts: WaitAndClickPs = {}): Pr<ClickResult> {
+      return await this._waitAndClickImpl(selector, { ...opts, clickFirst: true });
     }
 
 
-    waitAndClickLast(selector: St): ClickResult {
-      return this.waitAndClickNth(selector, -1);
+    async waitAndClickLast(selector: St): Pr<ClickResult> {
+      return await this.waitAndClickNth(selector, -1);
     }
 
 
@@ -1778,11 +1783,11 @@ export class TyE2eTestBrowser {
     }
 
 
-    waitUntilGone(what: St, ps: { timeoutMs?: Nr, timeoutIsFine?: Bo } = {}): Bo {   // RENAME to waitUntilCannotSee ?
-      const isGone = this.waitUntil(() => {
+    async waitUntilGone(what: St, ps: WaitPs = {}): Pr<Bo> {   // RENAME to waitUntilCannotSee ?
+      const isGone = await this.waitUntil(async () => {
         try {
-          const elem = this.$(what);
-          const gone = !elem || !elem.isExisting() || !elem.isDisplayed();
+          const elem = await this.$(what);
+          const gone = !elem || !(await elem.isExisting()) || !(await elem.isDisplayed());
           if (gone)
             return true;
         }
@@ -1831,42 +1836,42 @@ export class TyE2eTestBrowser {
       }
     }
 
-    refreshUntilGone(what: string, opts: { waitForMyDataAdded?: boolean } = {}) {
+    async refreshUntilGone(what: St, opts: { waitForMyDataAdded?: Bo } = {}) {
       while (true) {
         if (opts.waitForMyDataAdded) {
-          this.waitForMyDataAdded();
+          await this.waitForMyDataAdded();
         }
-        let resultsByBrowser = this.isVisible(what);
+        let resultsByBrowser = await this.isVisible(what);
         let isVisibleValues = allBrowserValues(resultsByBrowser);
         let goneEverywhere = !_.some(isVisibleValues);
         if (goneEverywhere) break;
-        this.#br.refresh();
-        this.#br.pause(250);
+        await this.#br.refresh();
+        await this.#br.pause(250);
       }
     }
 
     __theLoadingOveraySelector = '#theLoadingOverlay';
 
-    waitUntilLoadingOverlayGone() {
-      this.waitUntilGone(this.__theLoadingOveraySelector);
+    async waitUntilLoadingOverlayGone() {
+      await this.waitUntilGone(this.__theLoadingOveraySelector);
     }
 
-    waitUntilLoadingOverlayVisible_raceCond () {
+    async waitUntilLoadingOverlayVisible_raceCond () {
       // The loading overlay might disappear at any time, when done loading. (309362485)
       // So not impossible that e2e tests that use this fn, sometimes break
       // (that's fine, we'll just retry them).
-      this.waitForVisible(this.__theLoadingOveraySelector);
+      await this.waitForVisible(this.__theLoadingOveraySelector);
     }
 
-    isLoadingOverlayVisible_raceCond (): boolean {
+    async isLoadingOverlayVisible_raceCond (): Pr<Bo> {
       // A race: It might disappear at any time. (309362485)
-      return this.isVisible(this.__theLoadingOveraySelector);
+      return await this.isVisible(this.__theLoadingOveraySelector);
     }
 
-    waitUntilModalGone() {
-      this.#br.waitUntil(() => {
+    async waitUntilModalGone() {
+      await this.#br.waitUntil(async () => {
         // Check for the modal backdrop (it makes the stuff not in the dialog darker).
-        let resultsByBrowser = this.isVisible('.modal-backdrop');
+        let resultsByBrowser = await this.isVisible('.modal-backdrop');
         let values = allBrowserValues(resultsByBrowser);
         let anyVisible = _.some(values, x => x);
         if (anyVisible)
@@ -1876,22 +1881,22 @@ export class TyE2eTestBrowser {
         // I suppose in one this.#br, the modal is present, but in another, it's gone... somehow
         // resulting in Selenium failing with a """ERROR: stale element reference: element
         // is not attached to the page document""" error.
-        resultsByBrowser = this.isVisible('.fade.modal');
+        resultsByBrowser = await this.isVisible('.fade.modal');
         values = allBrowserValues(resultsByBrowser);
         anyVisible = _.some(values, x => x);
         return !anyVisible;
       });
-      this.waitUntilGone('.fade.modal');
+      await this.waitUntilGone('.fade.modal');
     }
 
     // Returns true iff the elem is no longer occluded.
     //
-    waitUntilElementNotOccluded(selector: string, opts: {
-          okayOccluders?: string, timeoutMs?: number, timeoutIsFine?: boolean } = {}): boolean {
+    async waitUntilElementNotOccluded(selector: string, opts: {
+          okayOccluders?: string, timeoutMs?: number, timeoutIsFine?: boolean } = {}): Pr<Bo> {
       dieIf(!selector, '!selector,  [TyE7WKSH206]');
       let result: string | true;
-      return this.waitUntil(() => {
-        result = <string | true> this.#br.execute(function(selector, okayOccluders): boolean | string {
+      return await this.waitUntil(async () => {
+        result = await this.#br.execute(function(selector, okayOccluders): boolean | string {
           var elem = document.querySelector(selector);
           if (!elem)
             return `No elem matches:  ${selector}`;
@@ -2034,15 +2039,15 @@ export class TyE2eTestBrowser {
     }
 
 
-    scrollAndSetValue(selector: string, value: string | number,
+    async scrollAndSetValue(selector: string, value: string | number,
         opts: { timeoutMs?: number, okayOccluders?: string, append?: boolean } = {}) {
-      this.scrollIntoViewInPageColumn(selector);
-      this.waitUntilDoesNotMove(selector);
-      this.waitAndSetValue(selector, value, { ...opts, checkAndRetry: true });
+      await this.scrollIntoViewInPageColumn(selector);
+      await this.waitUntilDoesNotMove(selector);
+      await this.waitAndSetValue(selector, value, { ...opts, checkAndRetry: true });
     }
 
 
-    waitAndSetValue(selector: string, value: string | number,
+    async waitAndSetValue(selector: string, value: string | number,
         opts: { maybeMoves?: true, checkAndRetry?: true, timeoutMs?: number,
             okayOccluders?: string, append?: boolean, skipWait?: true } = {}) {
 
@@ -2068,13 +2073,13 @@ export class TyE2eTestBrowser {
       //  this.waitUntilDoesNotMove(selector);
       //}
       if (!opts.skipWait) {
-        this._waitForClickable(selector, opts);
+        await this._waitForClickable(selector, opts);
       }
 
         // Sometimes, when starting typing, React does a refresh / unmount?
         // — maybe the mysterious unmount e2e test problem [5QKBRQ] ? [E2EBUG]
         // so the remaining characters gets lost. Then, try again.
-      this.waitUntil(() => {
+      await this.waitUntil(async () => {
           // Old comment, DO_AFTER 2020-08-01: Delete this comment.
           // This used to work, and still works in FF, but Chrome nowadays (2018-12)
           // just appends instead — now works again, with Webdriverio v6.
@@ -2082,21 +2087,21 @@ export class TyE2eTestBrowser {
           // GitHub issue and a more recent & better workaround?:
           //  https://github.com/webdriverio/webdriverio/issues/3024#issuecomment-542888255
           
-          const elem = this.$(selector);
-          const oldText = elem.getValue();
+          const elem = await this.$(selector);
+          const oldText = await elem.getValue();
 
           if (opts.append) {
             dieIf(!value, 'TyE29TKP0565');
             // Move the cursor to the end — it might be at the beginning, if text got
             // loaded from the server and inserted after [the editable elem had appeared
             // already, with the cursor at the beginning].
-            this.focus(selector);
-            this.#br.keys(Array('Control', 'End'));
+            await this.focus(selector);
+            await this.#br.keys(Array('Control', 'End'));
             // Now we can append.
-            elem.addValue(value);
+            await elem.addValue(value);
           }
           else if (_.isNumber(value)) {
-            elem.setValue(value);
+            await elem.setValue(value);
           }
           else if (!value) {
             // elem.clearValue();  // doesn't work, triggers no React.js events
@@ -2107,28 +2112,28 @@ export class TyE2eTestBrowser {
             //elem.setValue('x'); // eh, stopped working, WebdriverIO v6.0.14 —> 6.0.15 ? what ?
             //this.#br.keys(['Backspace']);  // properly triggers React.js event
             // Instead:
-            elem.setValue('x');  // focus it without clicking (in case a placeholder above)
-            this.#br.keys(Array(oldText.length + 1).fill('Backspace'));  // + 1 = the 'x'
+            await elem.setValue('x');  // focus it without clicking (in case a placeholder above)
+            await this.#br.keys(Array(oldText.length + 1).fill('Backspace'));  // + 1 = the 'x'
           }
           else {
             // --------------------------------
             // With WebDriver, setValue *appends* :- (  But works fine with Puppeteer.
             // So, if WebDriver, first clear the value:
             // elem.clearValue(); — has no effect, with WebDriver. Works with Puppeteer.
-            elem.setValue('x');  // appends, and focuses it without clicking
+            await elem.setValue('x');  // appends, and focuses it without clicking
                                   // (in case a placeholder text above)
             // Delete chars one at a time:
-            this.#br.keys(Array(oldText.length + 1).fill('Backspace'));  // + 1 = the 'x'
+            await this.#br.keys(Array(oldText.length + 1).fill('Backspace'));  // + 1 = the 'x'
             // --------------------------------
-            elem.setValue(value);
+            await elem.setValue(value);
           }
 
           if (!opts.checkAndRetry)
             return true;
 
-          this.#br.pause(200);
+          await this.#br.pause(200);
 
-          const valueReadBack = elem.getValue();
+          const valueReadBack = await elem.getValue();
           const desiredValue = (opts.append ? oldText : '') + value;
 
           if (desiredValue === valueReadBack)
@@ -2917,40 +2922,40 @@ export class TyE2eTestBrowser {
 
 
     topbar = {
-      isVisible: (): boolean => {
-        return this.isVisible('.esTopbar');
+      isVisible: async (): Pr<Bo> => {
+        return await this.isVisible('.esTopbar');
       },
 
-      waitForVisible: () => {  // old name? use waitForMyMenuVisible instead only?
-        this.topbar.waitForMyMenuVisible();
+      waitForVisible: async () => {  // old name? use waitForMyMenuVisible instead only?
+        await this.topbar.waitForMyMenuVisible();
       },
 
-      waitForMyMenuVisible: () => {  // RENAME to waitForMyMenuButtonVisible?
-        this.waitForVisible('.esMyMenu');
+      waitForMyMenuVisible: async () => {  // RENAME to waitForMyMenuButtonVisible?
+        await this.waitForVisible('.esMyMenu');
       },
 
-      clickBack: () => {
-        this.repeatUntilAtNewUrl(() => {
-          this.waitAndClick('.s_Tb_Ln-Bck');
+      clickBack: async () => {
+        await this.repeatUntilAtNewUrl(async () => {
+          await this.waitAndClick('.s_Tb_Ln-Bck');
         });
       },
 
-      clickHome: () => {
-        if (this.isVisible('.esLegal_home_link')) {
-          this.rememberCurrentUrl();
-          this.waitAndClick('.esLegal_home_link');
-          this.waitForNewUrl();
+      clickHome: async () => {
+        if (await this.isVisible('.esLegal_home_link')) {
+          await this.rememberCurrentUrl();
+          await this.waitAndClick('.esLegal_home_link');
+          await this.waitForNewUrl();
         }
         else {
           // (Already waits for new url.)
-          this.topbar.clickAncestor("Home");
+          await this.topbar.clickAncestor("Home");
         }
       },
 
       // MOVE to topic = ... ? because now in the topic by default
       // Next to: waitUntilParentCatIs(catName)
-      clickAncestor: (categoryName: St) => {
-        this.repeatUntilAtNewUrl(() => {
+      clickAncestor: async (categoryName: St) => {
+        await this.repeatUntilAtNewUrl(async () => {
           // Prefer licking a link in the topbar, if present, because if the topbar
           // is position: fixed at the top of the page, then a link in the page itself
           // can be occluded by the topbar.
@@ -2962,64 +2967,64 @@ export class TyE2eTestBrowser {
           // so it gets into view — but then the topbar might appear, just after
           // we've checked if it's there.)
           //
-          utils.tryManyTimes("Clicking ancestor link", 2, () => {
+          utils.tryManyTimes("Clicking ancestor link", 2, async () => {
             const ancLn = ' .esTopbar_ancestors_link';
-            const where = this.isVisible('.s_Tb ' + ancLn) ? '.s_Tb' : '.esPage';
-            this.waitForThenClickText(where + ancLn, categoryName, { tryNumTimes: 2 });
+            const where = await this.isVisible('.s_Tb ' + ancLn) ? '.s_Tb' : '.esPage';
+            await this.waitForThenClickText(where + ancLn, categoryName, { tryNumTimes: 2 });
           });
         });
       },
 
       // COULD FASTER_E2E_TESTS can set  wait:false at most places
-      assertMyUsernameMatches: (username: string, ps: { wait?: boolean } = {}) => {
+      assertMyUsernameMatches: async (username: St, ps: { wait?: Bo } = {}) => {
         if (ps.wait !== false) {
-          this.waitForDisplayed('.esMyMenu .esAvtrName_name');
+          await this.waitForDisplayed('.esMyMenu .esAvtrName_name');
         }
-        this.assertTextMatches('.esMyMenu .esAvtrName_name', username);
+        await this.assertTextMatches('.esMyMenu .esAvtrName_name', username);
       },
 
-      waitForNumPendingUrgentReviews: (numUrgent: IntAtLeastOne) => {
+      waitForNumPendingUrgentReviews: async (numUrgent: IntAtLeastOne) => {
         assert(numUrgent >= 1, "Zero tasks won't ever become visible [TyE5GKRBQQ2]");
-        this.waitUntilTextMatches('.esNotfIcon-reviewUrgent', '^' + numUrgent + '$');
+        await this.waitUntilTextMatches('.esNotfIcon-reviewUrgent', '^' + numUrgent + '$');
       },
 
-      waitForNumPendingOtherReviews: (numOther: IntAtLeastOne) => {
+      waitForNumPendingOtherReviews: async (numOther: IntAtLeastOne) => {
         assert(numOther >= 1, "Zero tasks won't ever become visible [TyE2WKBPJR3]");
-        this.waitUntilTextMatches('.esNotfIcon-reviewOther', '^' + numOther + '$');
+        await this.waitUntilTextMatches('.esNotfIcon-reviewOther', '^' + numOther + '$');
       },
 
-      isNeedsReviewUrgentVisible: () => {
-        return this.isVisible('.esNotfIcon-reviewUrgent');
+      isNeedsReviewUrgentVisible: async (): Pr<Bo> => {
+        return await this.isVisible('.esNotfIcon-reviewUrgent');
       },
 
-      isNeedsReviewOtherVisible: () => {
-        return this.isVisible('.esNotfIcon-reviewOther');
+      isNeedsReviewOtherVisible: async (): Pr<Bo> => {
+        return await this.isVisible('.esNotfIcon-reviewOther');
       },
 
-      getMyUsername: () => {
-        return this.waitAndGetVisibleText('.esMyMenu .esAvtrName_name');
+      getMyUsername: async (): Pr<St> => {
+        return await this.waitAndGetVisibleText('.esMyMenu .esAvtrName_name');
       },
 
-      clickLogin: () => {
-        this.waitAndClick('.esTopbar_logIn');
-        this.waitUntilLoadingOverlayGone();
+      clickLogin: async () => {
+        await this.waitAndClick('.esTopbar_logIn');
+        await this.waitUntilLoadingOverlayGone();
       },
 
-      clickSignUp: () => {
-        this.waitAndClick('.esTopbar_signUp');
-        this.waitUntilLoadingOverlayGone();
+      clickSignUp: async () => {
+        await this.waitAndClick('.esTopbar_signUp');
+        await this.waitUntilLoadingOverlayGone();
       },
 
-      clickLogout: (options: { waitForLoginButton?: Bo,   // RENAME to logout
+      clickLogout: async (options: { waitForLoginButton?: Bo,   // RENAME to logout
               waitForLoginDialog?: Bo } = {}) => {
         // Sometimes this scrolls to top, small small steps, annoying, [FASTER_E2E_TESTS]
         // and not needed, right.
         // Can speed up by calling scrollToTop() — done here: [305RKTJ205].
-        this.topbar.openMyMenu();
-        this.waitAndClick('#e2eMM_Logout');
-        this.waitAndClick('.e_ByeD .btn-primary');
+        await this.topbar.openMyMenu();
+        await this.waitAndClick('#e2eMM_Logout');
+        await this.waitAndClick('.e_ByeD .btn-primary');
         if (options.waitForLoginDialog) {
-          this.waitForDisplayed('.c_AuD');
+          await this.waitForDisplayed('.c_AuD');
         }
         else if (options.waitForLoginButton === false) {
           // Then a login dialog will probably have opened now in full screen, with a modal
@@ -3027,104 +3032,104 @@ export class TyE2eTestBrowser {
           // Or we got redirected to an SSO login window.
         }
         else {
-          this.waitUntilModalGone();
-          this.topbar.waitUntilLoginButtonVisible();
+          await this.waitUntilModalGone();
+          await this.topbar.waitUntilLoginButtonVisible();
         }
         // If on a users profile page, might start reloading something (because different user & perms).
-        this.waitUntilLoadingOverlayGone();
+        await this.waitUntilLoadingOverlayGone();
       },
 
-      waitUntilLoginButtonVisible: () => {
-        this.waitForVisible('.esTopbar_logIn');
+      waitUntilLoginButtonVisible: async () => {
+        await this.waitForVisible('.esTopbar_logIn');
       },
 
-      openMyMenu: () => {
+      openMyMenu: async () => {
         // We can click in the fixed topbar if it's present, instead of scrolling
         // all the way up to the static topbar.
         let sel = '.s_TbW-Fxd .esMyMenu';
-        const fixedScrollbarVisible = this.isVisible(sel);
+        const fixedScrollbarVisible = await this.isVisible(sel);
         const opts = { mayScroll: !fixedScrollbarVisible };
         if (!fixedScrollbarVisible) {
           sel = '.esMyMenu';
         }
-        this.waitAndClick(sel, opts);
-        this.waitUntilLoadingOverlayGone();
+        await this.waitAndClick(sel, opts);
+        await this.waitUntilLoadingOverlayGone();
         // Because of a bug in Chrome? Chromedriver? Selenium? Webdriver.io? wait-and-click
         // attempts to click instantly, before the show-menu anim has completed and the elem
         // has appeared. So pause for a short while. [E2EBUG]
-        this.#br.pause(333);
+        await this.#br.pause(333);
       },
 
-      closeMyMenuIfOpen: () => {
-        if (this.isVisible('.s_MM .esDropModal_CloseB')) {
-          this.waitAndClick('.s_MM .esDropModal_CloseB');
-          this.waitForGone('.s_MM .esDropModal_CloseB');
+      closeMyMenuIfOpen: async () => {
+        if (await this.isVisible('.s_MM .esDropModal_CloseB')) {
+          await this.waitAndClick('.s_MM .esDropModal_CloseB');
+          await this.waitForGone('.s_MM .esDropModal_CloseB');
         }
       },
 
-      clickGoToAdmin: () => {
-        this.rememberCurrentUrl();
-        this.topbar.openMyMenu();
-        this.waitAndClick('.esMyMenu_admin a');
-        this.waitForNewUrl();
-        this.waitUntilLoadingOverlayGone();
+      clickGoToAdmin: async () => {
+        await this.rememberCurrentUrl();
+        await this.topbar.openMyMenu();
+        await this.waitAndClick('.esMyMenu_admin a');
+        await this.waitForNewUrl();
+        await this.waitUntilLoadingOverlayGone();
       },
 
-      navigateToGroups: () => {
-        this.rememberCurrentUrl();
-        this.topbar.openMyMenu();
-        this.waitAndClick('#te_VwGrps');
-        this.waitForNewUrl();
-        this.groupListPage.waitUntilLoaded();
+      navigateToGroups: async () => {
+        await this.rememberCurrentUrl();
+        await this.topbar.openMyMenu();
+        await this.waitAndClick('#te_VwGrps');
+        await this.waitForNewUrl();
+        await this.groupListPage.waitUntilLoaded();
       },
 
-      clickGoToProfile: () => {
-        this.rememberCurrentUrl();
-        this.topbar.openMyMenu();
-        this.waitAndClick('#e2eMM_Profile');
-        this.waitForNewUrl();
-        this.waitForVisible(this.userProfilePage.avatarAboutButtonsSelector);
+      clickGoToProfile: async () => {
+        await this.rememberCurrentUrl();
+        await this.topbar.openMyMenu();
+        await this.waitAndClick('#e2eMM_Profile');
+        await this.waitForNewUrl();
+        await this.waitForVisible(this.userProfilePage.avatarAboutButtonsSelector);
       },
 
-      clickStopImpersonating: () => {
-        let oldName = this.topbar.getMyUsername();
+      clickStopImpersonating: async () => {
+        let oldName = await this.topbar.getMyUsername();
         let newName;
         this.topbar.openMyMenu();
-        this.waitAndClick('.s_MM_StopImpB');
+        await this.waitAndClick('.s_MM_StopImpB');
         // Wait for page to reload:
-        this.waitForGone('.s_MMB-IsImp');  // first, page reloads: the is-impersonating mark, disappears
-        this.waitForVisible('.esMyMenu');  // then the page reappears
+        await this.waitForGone('.s_MMB-IsImp');  // first, page reloads: the is-impersonating mark, disappears
+        await this.waitForVisible('.esMyMenu');  // then the page reappears
         do {
-          newName = this.topbar.getMyUsername();
+          newName = await this.topbar.getMyUsername();
         }
         while (oldName === newName);
       },
 
-      searchFor: (phrase: string) => {
-        this.waitAndClick('.esTB_SearchBtn');
+      searchFor: async (phrase: string) => {
+        await this.waitAndClick('.esTB_SearchBtn');
         // The search text field should grab focus, so we can just start typing:
         // But this causes a "RuntimeError" in Webdriver.io v4:
         // this.#br.keys(phrase);
         // This works though (although won't test if has focus):
-        this.waitAndSetValue('.c_SchD input[name="q"]', phrase);
-        this.waitAndClick('.e_SchB');
-        this.searchResultsPage.waitForResults(phrase);
+        await this.waitAndSetValue('.c_SchD input[name="q"]', phrase);
+        await this.waitAndClick('.e_SchB');
+        await this.searchResultsPage.waitForResults(phrase);
       },
 
-      assertNotfToMe: () => {
-        assert(this.isVisible('.esTopbar .esNotfIcon-toMe'));
+      assertNotfToMe: async () => {
+        assert(await this.isVisible('.esTopbar .esNotfIcon-toMe'));
       },
 
       notfsToMeClass: '.esTopbar .esNotfIcon-toMe',
       otherNotfsClass: '.esTopbar .esNotfIcon-toOthers',
 
-      waitForNumDirectNotfs: (numNotfs: IntAtLeastOne) => {
+      waitForNumDirectNotfs: async (numNotfs: IntAtLeastOne) => {
         assert(numNotfs >= 1, "Zero notfs won't ever become visible [TyE5GKRBQQ03]");
-        this.waitUntilTextMatches(this.topbar.notfsToMeClass, '^' + numNotfs + '$');
+        await this.waitUntilTextMatches(this.topbar.notfsToMeClass, '^' + numNotfs + '$');
       },
 
-      waitForNoDirectNotfs: () => {
-        this.waitForGone(this.topbar.notfsToMeClass);
+      waitForNoDirectNotfs: async () => {
+        await this.waitForGone(this.topbar.notfsToMeClass);
       },
 
       waitForNumOtherNotfs: (numNotfs: IntAtLeastOne) => {
@@ -3445,53 +3450,54 @@ export class TyE2eTestBrowser {
 
 
     loginDialog = {
-      isVisible: () => {
-        return this.isVisible('.dw-login-modal') && this.isVisible('.c_AuD');
+      isVisible: async () => {
+        return (await this.isVisible('.dw-login-modal')) &&
+                (await this.isVisible('.c_AuD'));
       },
 
-      refreshUntilFullScreen: () => {
+      refreshUntilFullScreen: async () => {
         let startMs = Date.now();
         let dialogShown = false;
         let lap = 0;
         while (Date.now() - startMs < settings.waitforTimeout) {
-          this.#br.refresh();
+          await this.#br.refresh();
           // Give the page enough time to load:
           lap += 1;
-          this.#br.pause(200 * Math.pow(1.5, lap));
-          dialogShown = this.loginDialog.isVisible();
+          await this.#br.pause(200 * Math.pow(1.5, lap));
+          dialogShown = await this.loginDialog.isVisible();
           if (dialogShown)
             break;
         }
         assert(dialogShown, "The login dialog never appeared");
-        this.loginDialog.waitAssertFullScreen();
+        await this.loginDialog.waitAssertFullScreen();
       },
 
-      waitAssertFullScreen: () => {
-        this.waitForVisible('.dw-login-modal');
-        this.waitForVisible('.c_AuD');
+      waitAssertFullScreen: async () => {
+        await this.waitForVisible('.dw-login-modal');
+        await this.waitForVisible('.c_AuD');
         // Forum not shown.
-        assert(!this.isVisible('.dw-forum'));
-        assert(!this.isVisible('.dw-forum-actionbar'));
+        assert(await !this.isVisible('.dw-forum'));
+        assert(await !this.isVisible('.dw-forum-actionbar'));
         // No forum topic shown.
-        assert(!this.isVisible('h1'));
-        assert(!this.isVisible('.dw-p'));
-        assert(!this.isVisible('.dw-p-ttl'));
+        assert(await !this.isVisible('h1'));
+        assert(await !this.isVisible('.dw-p'));
+        assert(await !this.isVisible('.dw-p-ttl'));
         // Admin area not shown.
-        assert(!this.isVisible('.s_Tb_Ln'));
-        assert(!this.isVisible('#dw-react-admin-app'));
+        assert(await !this.isVisible('.s_Tb_Ln'));
+        assert(await !this.isVisible('#dw-react-admin-app'));
         // User profile not shown.
-        assert(!this.isVisible(this.userProfilePage.avatarAboutButtonsSelector));
+        assert(await !this.isVisible(this.userProfilePage.avatarAboutButtonsSelector));
       },
 
-      clickSingleSignOnButton: () => {
-        this.waitAndClick('.s_LD_SsoB');
+      clickSingleSignOnButton: async () => {
+        await this.waitAndClick('.s_LD_SsoB');
       },
 
-      waitForSingleSignOnButton: () => {
-        this.waitForDisplayed('.s_LD_SsoB');
+      waitForSingleSignOnButton: async () => {
+        await this.waitForDisplayed('.s_LD_SsoB');
       },
 
-      createPasswordAccount: (data: MemberToCreate | {
+      createPasswordAccount: async (data: MemberToCreate | {
             fullName?: string,
             username: string,
             email?: string,
@@ -3505,63 +3511,63 @@ export class TyE2eTestBrowser {
             anyVerifyEmail?: 'THERE_WILL_BE_NO_VERIFY_EMAIL_DIALOG') => {
 
         // Switch from the guest login form to the create-real-account form, if needed.
-        this.waitForVisible('#e2eFullName');
-        if (this.isVisible('.c_AuD_2SgU')) {
-          this.waitAndClick('.c_AuD_2SgU .c_AuD_SwitchB');
-          this.waitForVisible('#e2ePassword');
+        await this.waitForVisible('#e2eFullName');
+        if (await this.isVisible('.c_AuD_2SgU')) {
+          await this.waitAndClick('.c_AuD_2SgU .c_AuD_SwitchB');
+          await this.waitForVisible('#e2ePassword');
         }
 
         // Dupl code (035BKAS20)
 
         logMessage('createPasswordAccount: fillInFullName...');
-        if (data.fullName) this.loginDialog.fillInFullName(data.fullName);
+        if (data.fullName) await this.loginDialog.fillInFullName(data.fullName);
         logMessage('fillInUsername...');
-        this.loginDialog.fillInUsername(data.username);
+        await this.loginDialog.fillInUsername(data.username);
         logMessage('fillInEmail...');
         const theEmail = data.email || data.emailAddress;
-        if (theEmail) this.loginDialog.fillInEmail(theEmail);
+        if (theEmail) await this.loginDialog.fillInEmail(theEmail);
         logMessage('fillInPassword...');
-        this.loginDialog.fillInPassword(data.password);
+        await this.loginDialog.fillInPassword(data.password);
         logMessage('clickSubmit...');
-        this.loginDialog.clickSubmit();
+        await this.loginDialog.clickSubmit();
         logMessage('acceptTerms...');
-        this.loginDialog.acceptTerms(data.shallBecomeOwner || shallBecomeOwner);
+        await this.loginDialog.acceptTerms(data.shallBecomeOwner || shallBecomeOwner);
         if (data.willNeedToVerifyEmail !== false &&
             anyVerifyEmail !== 'THERE_WILL_BE_NO_VERIFY_EMAIL_DIALOG') {
           logMessage('waitForNeedVerifyEmailDialog...');
-          this.loginDialog.waitForNeedVerifyEmailDialog();
+          await this.loginDialog.waitForNeedVerifyEmailDialog();
         }
         logMessage('createPasswordAccount: done');
       },
 
-      fillInFullName: (fullName: string) => {
-        this.waitAndSetValue('#e2eFullName', fullName);
+      fillInFullName: async (fullName: string) => {
+        await this.waitAndSetValue('#e2eFullName', fullName);
       },
 
-      fillInUsername: (username: string) => {
-        this.waitAndSetValue('#e2eUsername', username);
+      fillInUsername: async (username: string) => {
+        await this.waitAndSetValue('#e2eUsername', username);
       },
 
-      fillInEmail: (emailAddress: string) => {
-        this.waitAndSetValue('#e2eEmail', emailAddress);
+      fillInEmail: async (emailAddress: string) => {
+        await this.waitAndSetValue('#e2eEmail', emailAddress);
       },
 
-      waitForNeedVerifyEmailDialog: () => {
-        this.waitForVisible('#e2eNeedVerifyEmailDialog');
+      waitForNeedVerifyEmailDialog: async () => {
+        await this.waitForVisible('#e2eNeedVerifyEmailDialog');
       },
 
-      waitForAndCloseWelcomeLoggedInDialog: () => {
-        this.waitForVisible('#te_WelcomeLoggedIn');
-        this.waitAndClick('#te_WelcomeLoggedIn button');
-        this.waitUntilModalGone();
+      waitForAndCloseWelcomeLoggedInDialog: async () => {
+        await this.waitForVisible('#te_WelcomeLoggedIn');
+        await this.waitAndClick('#te_WelcomeLoggedIn button');
+        await this.waitUntilModalGone();
       },
 
-      fillInPassword: (password: string) => {
-        this.waitAndSetValue('#e2ePassword', password);
+      fillInPassword: async (password: string) => {
+        await this.waitAndSetValue('#e2ePassword', password);
       },
 
-      waitForBadLoginMessage: () => {
-        this.waitForVisible('.esLoginDlg_badPwd');
+      waitForBadLoginMessage: async () => {
+        await this.waitForVisible('.esLoginDlg_badPwd');
       },
 
       loginWithPassword: async (username: string | Member | { username: string, password: string },
@@ -3592,56 +3598,56 @@ this.l(`Num tab: ${numTabs}`);
         }
       },
 
-      loginWithEmailAndPassword: (emailAddress: string, password: string, badLogin?: 'BAD_LOGIN') => {
-        this.loginDialog.tryLogin(emailAddress, password);
+      loginWithEmailAndPassword: async (emailAddress: string, password: string, badLogin?: 'BAD_LOGIN') => {
+        await this.loginDialog.tryLogin(emailAddress, password);
         if (badLogin !== 'BAD_LOGIN') {
-          this.waitUntilModalGone();
-          this.waitUntilLoadingOverlayGone();
+          await this.waitUntilModalGone();
+          await this.waitUntilLoadingOverlayGone();
         }
       },
 
       // Embedded discussions do all logins in popups.
       loginWithPasswordInPopup:
-          (username: string | NameAndPassword, password?: string) => {
-        this.swithToOtherTabOrWindow(IsWhere.LoginPopup);
-        this.disableRateLimits();
+          async (username: string | NameAndPassword, password?: string) => {
+        await this.swithToOtherTabOrWindow(IsWhere.LoginPopup);
+        await this.disableRateLimits();
         if (_.isObject(username)) {
           password = username.password;
           username = username.username;
         }
-        const numTabs = this.numTabs();
-        this.loginDialog.tryLogin(username, password);
+        const numTabs = await this.numTabs();
+        await this.loginDialog.tryLogin(username, password);
         // The popup auto closes after login.
-        this.waitForMaxBrowserTabs(numTabs - 1);
-        this.switchBackToFirstTabOrWindow();
+        await this.waitForMaxBrowserTabs(numTabs - 1);
+        await this.switchBackToFirstTabOrWindow();
       },
 
-      loginButBadPassword: (username: string, password: string) => {
-        this.loginDialog.tryLogin(username, password);
-        this.waitForVisible('.esLoginDlg_badPwd');
+      loginButBadPassword: async (username: St, password: St) => {
+        await this.loginDialog.tryLogin(username, password);
+        await this.waitForVisible('.esLoginDlg_badPwd');
       },
 
-      tryLogin: async (username: string, password: string) => {
+      tryLogin: async (username: St, password: St) => {
         await this.loginDialog.switchToLoginIfIsSignup();
         await this.loginDialog.fillInUsername(username);
         await this.loginDialog.fillInPassword(password);
         await this.loginDialog.clickSubmit();
       },
 
-      waitForEmailUnverifiedError: () => {
-        this.waitUntilTextMatches('.modal-body', 'TyEEML0VERIF_');
+      waitForEmailUnverifiedError: async () => {
+        await this.waitUntilTextMatches('.modal-body', 'TyEEML0VERIF_');
       },
 
-      waitForAccountSuspendedError: () => {
-        this.waitUntilTextMatches('.modal-body', 'TyEUSRSSPNDD_');
+      waitForAccountSuspendedError: async () => {
+        await this.waitUntilTextMatches('.modal-body', 'TyEUSRSSPNDD_');
       },
 
-      waitForNotCreatedPasswordDialog: () => {
-        this.waitForVisible('.e_NoPwD');
+      waitForNotCreatedPasswordDialog: async () => {
+        await this.waitForVisible('.e_NoPwD');
       },
 
-      clickCreatePasswordButton: () => {
-        this.waitAndClick('.e_NoPwD button');
+      clickCreatePasswordButton: async () => {
+        await this.waitAndClick('.e_NoPwD button');
       },
 
       signUpAsGuest: (name: string, email?: string) => { // CLEAN_UP use createPasswordAccount instead? [8JTW4]
@@ -3695,11 +3701,11 @@ this.l(`Num tab: ${numTabs}`);
         this.loginDialog.acceptTerms(false);
       },
 
-      clickCreateAccountInstead: () => {
-        this.waitAndClick('.c_AuD_2SgU .c_AuD_SwitchB');
-        this.waitForVisible('.esCreateUser');
-        this.waitForVisible('#e2eUsername');
-        this.waitForVisible('#e2ePassword');
+      clickCreateAccountInstead: async () => {
+        await this.waitAndClick('.c_AuD_2SgU .c_AuD_SwitchB');
+        await this.waitForVisible('.esCreateUser');
+        await this.waitForVisible('#e2eUsername');
+        await this.waitForVisible('#e2ePassword');
       },
 
       switchToLoginIfIsSignup: async () => {
@@ -4217,25 +4223,25 @@ this.l(`Num tab: ${numTabs}`);
         }
       },
 
-      checkLinkAccountsTextOk: (ps: { matchingEmail: St,
+      checkLinkAccountsTextOk: async (ps: { matchingEmail: St,
             talkyardUsername: St, azureFullName: St, idpName: St }) => {
         // Now there's some info text, and one needs to login again via the IDP,
         // to find out directly, if it works or not.
-        this.assertTextIs('.e_EmAdr', ps.matchingEmail);
-        this.assertTextIs('.e_TyUn', ps.talkyardUsername);
-        this.assertTextIs('.e_NameAtIdp', ps.azureFullName);
-        this.assertTextIs('.e_IdpName', ps.idpName);
+        await this.assertTextIs('.e_EmAdr', ps.matchingEmail);
+        await this.assertTextIs('.e_TyUn', ps.talkyardUsername);
+        await this.assertTextIs('.e_NameAtIdp', ps.azureFullName);
+        await this.assertTextIs('.e_IdpName', ps.idpName);
       },
 
-      clickYesLinkAccounts: () => {
-        this.waitAndClick('.e_YesLnActsB');
+      clickYesLinkAccounts: async () => {
+        await this.waitAndClick('.e_YesLnActsB');
       },
 
-      clickLogInAgain: (ps: { isInPopupThatWillClose?: Bo } = {}) => {
+      clickLogInAgain: async (ps: { isInPopupThatWillClose?: Bo } = {}) => {
         // If clicking quickly, won't work. Why not? This is just a plain
         // ordinary <a href=..>, no Javascript. Whatvever, just:  [E2EBUG]
-        this.pause(444);
-        this.waitAndClick('.e_LogInAgain');
+        await this.pause(444);
+        await this.waitAndClick('.e_LogInAgain');
 
         /*
         // There's some race, button clicked but nothing happens — so try a few times.)
@@ -4250,10 +4256,10 @@ this.l(`Num tab: ${numTabs}`);
         */
       },
 
-      loginPopupClosedBecauseAlreadyLoggedIn: (): boolean => {
+      loginPopupClosedBecauseAlreadyLoggedIn: async (): Pr<Bo> => {
         try {
           logMessage("checking if we got logged in instantly... [EdM2PG44Y0]");
-          const yes = this.numWindowsOpen() === 1;// ||  // login tab was auto closed
+          const yes = await this.numWindowsOpen() === 1;// ||  // login tab was auto closed
               //this.isExisting('.e_AlreadyLoggedIn');    // server shows logged-in-already page
               //  ^--- sometimes blocks forever, how is that possible?
           logMessage(yes ? "yes seems so" : "no don't think so");
@@ -4268,34 +4274,34 @@ this.l(`Num tab: ${numTabs}`);
         }
       },
 
-      waitAndClickOkInWelcomeDialog: () => {
-        this.waitAndClick('#te_WelcomeLoggedIn .btn');
+      waitAndClickOkInWelcomeDialog: async () => {
+        await this.waitAndClick('#te_WelcomeLoggedIn .btn');
       },
 
-      clickResetPasswordCloseDialogSwitchTab: () => {
+      clickResetPasswordCloseDialogSwitchTab: async () => {
         // This click opens a new tab.
-        this.waitAndClick('.dw-reset-pswd');
+        await this.waitAndClick('.dw-reset-pswd');
         // The login dialog should close when we click the reset-password link. [5KWE02X]
-        this.waitUntilModalGone();
-        this.waitUntilLoadingOverlayGone();
-        this.swithToOtherTabOrWindow();
-        this.waitForVisible('#e2eRPP_emailI');
+        await this.waitUntilModalGone();
+        await this.waitUntilLoadingOverlayGone();
+        await this.swithToOtherTabOrWindow();
+        await this.waitForVisible('#e2eRPP_emailI');
       },
 
-      clickSubmit: () => {
-        this.waitAndClick('#e2eSubmit');
+      clickSubmit: async () => {
+        await this.waitAndClick('#e2eSubmit');
       },
 
-      clickCancel: () => {
-        this.waitAndClick('#e2eLD_Cancel');
-        this.waitUntilModalGone();
+      clickCancel: async () => {
+        await this.waitAndClick('#e2eLD_Cancel');
+        await this.waitUntilModalGone();
       },
 
-      acceptTerms: (isForSiteOwner?: boolean) => {
-        this.waitForVisible('#e_TermsL');
-        this.waitForVisible('#e_PrivacyL');
-        const termsLinkHtml = this.$('#e_TermsL').getHTML();
-        const privacyLinkHtml = this.$('#e_PrivacyL').getHTML();
+      acceptTerms: async (isForSiteOwner?: boolean) => {
+        await this.waitForVisible('#e_TermsL');
+        await this.waitForVisible('#e_PrivacyL');
+        const termsLinkHtml = await this.$('#e_TermsL').getHTML();
+        const privacyLinkHtml = await this.$('#e_PrivacyL').getHTML();
         if (isForSiteOwner) {
           // In dev-test, the below dummy urls are defined [5ADS24], but not in prod.
           if (!settings.prod) {
@@ -4307,69 +4313,69 @@ this.l(`Num tab: ${numTabs}`);
           assert(termsLinkHtml.indexOf('/-/terms-of-use') >= 0);
           assert(privacyLinkHtml.indexOf('/-/privacy-policy') >= 0);
         }
-        this.setCheckbox('.s_TermsD_CB input', true);
-        this.waitAndClick('.s_TermsD_B');
+        await this.setCheckbox('.s_TermsD_CB input', true);
+        await this.waitAndClick('.s_TermsD_B');
       },
 
-      reopenToClearAnyError: () => {
-        this.loginDialog.clickCancel();
-        this.topbar.clickLogin();
+      reopenToClearAnyError: async () => {
+        await this.loginDialog.clickCancel();
+        await this.topbar.clickLogin();
       },
     };
 
 
     resetPasswordPage = {
-      submitAccountOwnerEmailAddress: (emailAddress: string) => {
+      submitAccountOwnerEmailAddress: async (emailAddress: St) => {
         logBoring(`Types email address ...`);
-        this.resetPasswordPage.fillInAccountOwnerEmailAddress(emailAddress);
-        this.rememberCurrentUrl();
+        await this.resetPasswordPage.fillInAccountOwnerEmailAddress(emailAddress);
+        await this.rememberCurrentUrl();
         logBoring(`Submits ...`);
-        this.resetPasswordPage.clickSubmit();
+        await this.resetPasswordPage.clickSubmit();
         logBoring(`Waits for confirmation that a password reset email got sent ...`);
-        this.waitForNewUrl();
-        this.waitForVisible('#e2eRPP_ResetEmailSent');
+        await this.waitForNewUrl();
+        await this.waitForVisible('#e2eRPP_ResetEmailSent');
         logBoring(`... Done`);
       },
 
-      fillInAccountOwnerEmailAddress: (emailAddress: string) => {
-        this.waitAndSetValue('#e2eRPP_emailI', emailAddress);
+      fillInAccountOwnerEmailAddress: async (emailAddress: St) => {
+        await this.waitAndSetValue('#e2eRPP_emailI', emailAddress);
       },
 
-      clickSubmit: () => {
-        this.waitAndClick('#e2eRPP_SubmitB');
+      clickSubmit: async () => {
+        await this.waitAndClick('#e2eRPP_SubmitB');
       },
     };
 
 
     chooseNewPasswordPage = {
-      typeAndSaveNewPassword: (password: string, opts: { oldPassword?: string } = {}) => {
-        this.chooseNewPasswordPage.typeNewPassword(password);
+      typeAndSaveNewPassword: async (password: St, opts: { oldPassword?: St } = {}) => {
+        await this.chooseNewPasswordPage.typeNewPassword(password);
         if (!opts.oldPassword) {
           // There's a <span> with the below class, just to show this test that there's
           // no type-old-password input field.
-          assert(this.isExisting('.e_NoOldPwI'));
+          assert(await this.isExisting('.e_NoOldPwI'));
         }
-        this.chooseNewPasswordPage.submit();
-        this.chooseNewPasswordPage.waitUntilPasswordChanged();
+        await this.chooseNewPasswordPage.submit();
+        await this.chooseNewPasswordPage.waitUntilPasswordChanged();
       },
 
-      typeNewPassword: (password: string) => {
-        this.waitAndSetValue('#e2ePassword', password);
+      typeNewPassword: async (password: St) => {
+        await this.waitAndSetValue('#e2ePassword', password);
       },
 
-      submit: () => {
-        this.waitAndClick('.e_SbmNewPwB');
+      submit: async () => {
+        await this.waitAndClick('.e_SbmNewPwB');
       },
 
-      waitUntilPasswordChanged: () => {
+      waitUntilPasswordChanged: async () => {
         // Stays at the same url.
-        this.waitForVisible("#e2eRPP_PasswordChanged");
+        await this.waitForVisible("#e2eRPP_PasswordChanged");
       },
 
-      navToHomepage: () => {
+      navToHomepage: async () => {
         logMessage("Following homepage link...");
-        this.repeatUntilAtNewUrl(() => {
-          this.waitAndClick('a[href="/"]');
+        await this.repeatUntilAtNewUrl(async () => {
+          await this.waitAndClick('a[href="/"]');
         });
       },
     }
@@ -8607,8 +8613,8 @@ this.l(`Num tab: ${numTabs}`);
         this.switchToAnyParentFrame();
       },
 
-      loginWithPasswordViaTopbar: (username: string | Member | { username, password },
-            optsOrPassword?: string | { resultInError?: boolean }) => {
+      loginWithPasswordViaTopbar: async (username: St | Member | { username, password },
+            optsOrPassword?: St | { resultInError?: Bo }) => {
         let password = optsOrPassword;
         let opts;
         console.log(`TyE2eApi: loginWithPasswordViaTopbar`);
@@ -8616,10 +8622,10 @@ this.l(`Num tab: ${numTabs}`);
           opts = <any> password;
           password = null;
         }
-        this.topbar.clickLogin();
+        await this.topbar.clickLogin();
         const credentials = _.isObject(username) ?  // already { username, password } object
             username : { username: username, password: password };
-        this.loginDialog.loginWithPassword(credentials, opts || {});
+        await this.loginDialog.loginWithPassword(credentials, opts || {});
       },
 
       signUpAsMemberViaTopbar: (
